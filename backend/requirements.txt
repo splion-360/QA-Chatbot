@@ -1,0 +1,37 @@
+# Web Framework
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+
+# Database & Cache
+redis==5.2.0
+
+# Message Queue
+rq==2.0.0
+
+# HTTP Client
+httpx==0.28.0
+
+# Data Validation
+pydantic==2.10.2
+pydantic-settings==2.6.1
+
+# Development Tools
+ruff==0.8.4
+black==24.10.0
+pre-commit==4.0.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Environment
+python-dotenv==1.0.1
+
+# CORS
+python-multipart==0.0.17
+
+# Optional: AI/ML (for future RAG implementation)
+# openai==1.54.4
+# langchain==0.3.7
+# chromadb==0.5.23
