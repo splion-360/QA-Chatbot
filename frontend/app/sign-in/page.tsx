@@ -1,7 +1,7 @@
 'use client';
 
-import SignIn from './SignIn';
+import SignInSide from '../sign-in-side/SignInSide';
 
 export default function SignInPage() {
-  return <SignIn />;
+  return <SignInSide />;
 }

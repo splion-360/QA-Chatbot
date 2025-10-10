@@ -1,5 +1,4 @@
-import { createBrowserClient } from '@supabase/ssr';
-
+import { createBrowserClient } from '@supabase/ssr'; 
 const environment = process.env.ENVIRONMENT || 'production';
 
 let supabaseUrl: string;
@@ -23,6 +22,8 @@ export const createClient = () =>
     auth: {
       persistSession: true,
       detectSessionInUrl: true,
-      flowType: 'pkce'
+      flowType: 'pkce',
+      autoRefreshToken: true,
+      debug: false
     }
   });
