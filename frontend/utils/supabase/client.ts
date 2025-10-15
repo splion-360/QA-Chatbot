@@ -1,8 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr'; 
-const environment = process.env.ENVIRONMENT || 'production';
+const environment = process.env.NODE_ENV || 'production';
 
 let supabaseUrl: string;
 let supabaseAnonKey: string;
+
 
 if (environment === 'development') {
   supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_DEV!;

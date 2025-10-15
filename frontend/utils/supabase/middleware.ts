@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-let environment = process.env.ENVIRONMENT || "production"; 
+let environment = process.env.NODE_ENV || "production"; 
 let supabaseUrl: string; 
 let supabaseAnonKey: string; 
 
@@ -54,7 +54,8 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/sign-in') &&
     !request.nextUrl.pathname.startsWith('/sign-up') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/error')
+    !request.nextUrl.pathname.startsWith('/error') &&
+    !request.nextUrl.pathname.startsWith('/reset-password')
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

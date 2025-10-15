@@ -4,10 +4,16 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const type = searchParams.get('type');
   const next = searchParams.get('next') || '/dashboard';
 
+  console.log('=== AUTH CALLBACK DEBUG ===');
+  console.log('Full URL:', request.url);
   console.log('Auth callback received:', {
     code: code ? 'present' : 'missing',
+    type: type,
+    next: next,
+    origin: origin,
     searchParams: Object.fromEntries(searchParams.entries())
   });
 
@@ -32,13 +38,17 @@ export async function GET(request: Request) {
           identities: user.identities?.length || 0
         });
 
+        // Check if this is a password recovery flow
+        const redirectPath = type === 'recovery' ? '/reset-password' : next;
+
         console.log('User authenticated successfully, redirecting to:', {
           userId: user.id,
           userEmail: user.email,
-          redirectPath: next
+          type: type,
+          redirectPath: redirectPath
         });
 
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(`${origin}${redirectPath}`);
       } else {
         throw new Error('No session data received after code exchange');
       }
@@ -54,7 +64,15 @@ export async function GET(request: Request) {
 
   console.error('Auth callback error: No authorization code received', {
     searchParams: Object.fromEntries(searchParams.entries()),
-    origin
+    origin,
+    type: type,
+    possiblePasswordReset: type === 'recovery'
   });
+  
+  // If this is a password recovery attempt without code, it might be an invalid/expired link
+  if (type === 'recovery') {
+    return NextResponse.redirect(`${origin}/sign-in?error=invalid_reset_link`);
+  }
+  
   return NextResponse.redirect(`${origin}/sign-in?error=no_code`);
 }

@@ -12,7 +12,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
 import { useRouter } from 'next/navigation';
-import ForgotPassword from './ForgotPassword';
+import toast from 'react-hot-toast';
+// import ForgotPassword from './ForgotPassword';
 import { SitemarkIcon } from './CustomIcons';
 import { createClient } from '@utils/supabase/client';
 
@@ -41,16 +42,16 @@ export default function SignInCard() {
   const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
   const [passwordError, setPasswordError] = React.useState(false);
   const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
-  const [open, setOpen] = React.useState(false);
+  // const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
+  // const handleClickOpen = () => {
+  //   setOpen(true);
+  // };
 
-  const handleClose = () => {
-    setOpen(false);
-  };
+  // const handleClose = () => {
+  //   setOpen(false);
+  // };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,14 +71,13 @@ export default function SignInCard() {
       });
 
       if (error) {
-        setEmailError(true);
-        setEmailErrorMessage(error.message);
+        toast.error(error.message);
       } else {
+        toast.success('Welcome back!');
         router.push('/dashboard');
       }
     } catch (error) {
-      setEmailError(true);
-      setEmailErrorMessage('An unexpected error occurred');
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ export default function SignInCard() {
         <FormControl>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <FormLabel htmlFor="password">Password</FormLabel>
-            <Link
+            {/* <Link
               component="button"
               type="button"
               onClick={handleClickOpen}
@@ -156,7 +156,7 @@ export default function SignInCard() {
               sx={{ alignSelf: 'baseline' }}
             >
               Forgot your password?
-            </Link>
+            </Link> */}
           </Box>
           <TextField
             error={passwordError}
@@ -173,11 +173,7 @@ export default function SignInCard() {
             color={passwordError ? 'error' : 'primary'}
           />
         </FormControl>
-        <FormControlLabel
-          control={<Checkbox value="remember" color="primary" />}
-          label="Remember me"
-        />
-        <ForgotPassword open={open} handleClose={handleClose} />
+        {/* <ForgotPassword open={open} handleClose={handleClose} /> */}
         <Button 
           type="submit" 
           fullWidth 

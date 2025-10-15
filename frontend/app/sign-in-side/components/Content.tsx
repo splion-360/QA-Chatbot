@@ -2,36 +2,35 @@ import * as React from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded';
-import ConstructionRoundedIcon from '@mui/icons-material/ConstructionRounded';
-import SettingsSuggestRoundedIcon from '@mui/icons-material/SettingsSuggestRounded';
-import ThumbUpAltRoundedIcon from '@mui/icons-material/ThumbUpAltRounded';
-import { SitemarkIcon } from './CustomIcons';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import DescriptionIcon from '@mui/icons-material/Description';
+import SearchIcon from '@mui/icons-material/Search';
+import ChatIcon from '@mui/icons-material/Chat';
 
 const items = [
   {
-    icon: <SettingsSuggestRoundedIcon sx={{ color: 'text.secondary' }} />,
-    title: 'Adaptable performance',
+    icon: <SmartToyIcon sx={{ color: 'text.secondary' }} />,
+    title: 'AI-Powered Conversations',
     description:
-      'Our product effortlessly adjusts to your needs, boosting efficiency and simplifying your tasks.',
+      'Engage with an intelligent chatbot that understands context and provides accurate, helpful responses to your questions.',
   },
   {
-    icon: <ConstructionRoundedIcon sx={{ color: 'text.secondary' }} />,
-    title: 'Built to last',
+    icon: <DescriptionIcon sx={{ color: 'text.secondary' }} />,
+    title: 'Document Intelligence',
     description:
-      'Experience unmatched durability that goes above and beyond with lasting investment.',
+      'Upload and analyze your documents. The AI extracts insights and answers questions based on your specific content.',
   },
   {
-    icon: <ThumbUpAltRoundedIcon sx={{ color: 'text.secondary' }} />,
-    title: 'Great user experience',
+    icon: <SearchIcon sx={{ color: 'text.secondary' }} />,
+    title: 'Smart Search & Retrieval',
     description:
-      'Integrate our product into your routine with an intuitive and easy-to-use interface.',
+      'Find information instantly across all your uploaded documents with advanced semantic search capabilities.',
   },
   {
-    icon: <AutoFixHighRoundedIcon sx={{ color: 'text.secondary' }} />,
-    title: 'Innovative functionality',
+    icon: <ChatIcon sx={{ color: 'text.secondary' }} />,
+    title: 'Interactive Q&A',
     description:
-      'Stay ahead with features that set new standards, addressing your evolving needs better than the rest.',
+      'Get instant answers from your documents through natural conversations. Ask follow-up questions and dive deeper into topics.',
   },
 ];
 
@@ -40,8 +39,19 @@ export default function Content() {
     <Stack
       sx={{ flexDirection: 'column', alignSelf: 'center', gap: 4, maxWidth: 450 }}
     >
-      <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
-        <SitemarkIcon />
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
+        <img 
+          src="/mascot.svg" 
+          alt="QA Chatbot Mascot" 
+          width={60}
+          height={60}
+          style={{
+            display: 'block'
+          }}
+        />
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+          QA Chatbot
+        </Typography>
       </Box>
       {items.map((item, index) => (
         <Stack key={index} direction="row" sx={{ gap: 2 }}>

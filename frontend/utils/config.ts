@@ -1,4 +1,4 @@
-const ENV = process.env.ENVIRONMENT || "development";
+const ENV = process.env.NODE_ENV || "development";
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || "";
 const DEV_PORT = process.env.DEV_PORT || "3000";
 

@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const environment = process.env.ENVIRONMENT || "production";
+const environment = process.env.NODE_ENV || "production";
 
 let supabaseUrl: string;
 let supabaseAnonKey: string;

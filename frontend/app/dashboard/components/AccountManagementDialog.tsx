@@ -55,11 +55,11 @@ export default function AccountManagementDialog({
   const fetchUserData = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       // Get current user session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !session?.user) {
         setError('No user session found');
         setLoading(false);
@@ -69,24 +69,15 @@ export default function AccountManagementDialog({
       // Fetch user data from users table
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, display_name, created_at')
+        .select('id, email, name, created_at')
         .eq('id', session.user.id)
         .single();
 
       if (error) {
-        showToast('Using fallback account data', 'warning');
-        // Create fallback user data from session
-        const fallbackData: UserData = {
-          id: session.user.id,
-          email: session.user.email || 'Unknown',
-          display_name: session.user.user_metadata?.full_name || '',
-          created_at: session.user.created_at || new Date().toISOString(),
-        };
-        setUserData(fallbackData);
-        setDisplayName(fallbackData.display_name || '');
+        showToast('User data not found', 'warning');
       } else {
         setUserData(data);
-        setDisplayName(data.display_name || '');
+        setDisplayName(data.name || '');
       }
     } catch (error) {
       showToast('Failed to load account data', 'error');
@@ -109,8 +100,7 @@ export default function AccountManagementDialog({
         .upsert({
           id: userData.id,
           email: userData.email,
-          display_name: displayName.trim() || null,
-          updated_at: new Date().toISOString(),
+          name: displayName.trim() || null,
         })
         .eq('id', userData.id);
 
@@ -122,7 +112,7 @@ export default function AccountManagementDialog({
         showToast('Display name updated successfully!', 'success');
         setUserData(prev => prev ? { ...prev, display_name: displayName.trim() } : null);
         onUserUpdate();
-        
+
         // Auto-close dialog after successful save
         setTimeout(() => {
           onClose();
@@ -158,8 +148,8 @@ export default function AccountManagementDialog({
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
@@ -172,7 +162,7 @@ export default function AccountManagementDialog({
           My Account
         </Typography>
       </DialogTitle>
-      
+
       <DialogContent>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -182,17 +172,17 @@ export default function AccountManagementDialog({
           <Stack spacing={3}>
             {/* User Avatar and Basic Info */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
-              <Avatar 
-                sx={{ 
-                  width: 64, 
-                  height: 64, 
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
                   bgcolor: 'primary.main',
                   fontSize: 24,
                   fontWeight: 600,
                 }}
               >
-                {userData.display_name 
-                  ? userData.display_name.charAt(0).toUpperCase() 
+                {userData.display_name
+                  ? userData.display_name.charAt(0).toUpperCase()
                   : userData.email.charAt(0).toUpperCase()
                 }
               </Avatar>
@@ -269,7 +259,7 @@ export default function AccountManagementDialog({
           </Alert>
         )}
       </DialogContent>
-      
+
       <DialogActions sx={{ p: 3, pt: 1 }}>
         <Button onClick={handleClose} disabled={saving}>
           Cancel

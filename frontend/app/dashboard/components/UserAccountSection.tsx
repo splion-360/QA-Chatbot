@@ -13,7 +13,7 @@ import { useToast } from './ToastProvider';
 interface UserData {
   id: string;
   email: string;
-  display_name?: string;
+  name?: string;
   created_at: string;
 }
 
@@ -22,7 +22,7 @@ export default function UserAccountSection() {
   const [loading, setLoading] = React.useState(true);
   const [mounted, setMounted] = React.useState(false);
   const [hasShownFallbackToast, setHasShownFallbackToast] = React.useState(false);
-  
+
   const supabase = createClient();
   const { showToast } = useToast();
 
@@ -32,37 +32,24 @@ export default function UserAccountSection() {
 
   const fetchUserData = React.useCallback(async () => {
     if (!mounted) return;
-    
+
     try {
       // Get current user session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !session?.user) {
         showToast('Authentication session not found', 'error');
         setLoading(false);
         return;
       }
 
-      // Fetch user data from users table
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, display_name, created_at')
+        .select('id, email, name, created_at')
         .eq('id', session.user.id)
         .single();
 
-      if (error) {
-        if (!hasShownFallbackToast) {
-          showToast('Using fallback user data', 'warning');
-          setHasShownFallbackToast(true);
-        }
-        // Fallback to session data if user not in database
-        setUserData({
-          id: session.user.id,
-          email: session.user.email || 'Unknown',
-          display_name: session.user.user_metadata?.full_name || '',
-          created_at: session.user.created_at || new Date().toISOString(),
-        });
-      } else {
+      if (!error) {
         setUserData(data);
       }
     } catch (error) {
@@ -182,33 +169,33 @@ export default function UserAccountSection() {
         borderColor: 'divider',
       }}
     >
-      <Avatar 
-        sx={{ 
-          width: 36, 
-          height: 36, 
+      <Avatar
+        sx={{
+          width: 36,
+          height: 36,
           bgcolor: 'primary.main',
           fontSize: 14,
           fontWeight: 600,
         }}
       >
-        {userData.display_name ? userData.display_name.charAt(0).toUpperCase() : userData.email.charAt(0).toUpperCase()}
+        {userData.name ? userData.name.charAt(0).toUpperCase() : userData.email.charAt(0).toUpperCase()}
       </Avatar>
       <Box sx={{ mr: 'auto', minWidth: 0, flex: 1 }}>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 500, 
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 500,
             lineHeight: '16px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}
         >
-          {userData.display_name || userData.email.split('@')[0]}
+          {userData.name}
         </Typography>
-        <Typography 
-          variant="caption" 
-          sx={{ 
+        <Typography
+          variant="caption"
+          sx={{
             color: 'text.secondary',
             display: 'block',
             overflow: 'hidden',
@@ -218,9 +205,9 @@ export default function UserAccountSection() {
         >
           {userData.email}
         </Typography>
-        <Typography 
-          variant="caption" 
-          sx={{ 
+        <Typography
+          variant="caption"
+          sx={{
             color: 'text.secondary',
             fontSize: '0.65rem',
             display: 'block',

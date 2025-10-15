@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useState, FormEvent } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -14,9 +14,9 @@ import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
 import { styled } from '@mui/material/styles';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import AppTheme from '../shared-theme/AppTheme';
 import ColorModeSelect from '../shared-theme/ColorModeSelect';
-import { SitemarkIcon } from './components/CustomIcons';
 import { createClient } from '@utils/supabase/client';
 
 const Card = styled(MuiCard)(({ theme }) => ({
@@ -64,13 +64,13 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
 export default function SignUp(props: { disableCustomTheme?: boolean }) {
   const router = useRouter();
   const supabase = createClient();
-  const [emailError, setEmailError] = React.useState(false);
-  const [emailErrorMessage, setEmailErrorMessage] = React.useState('');
-  const [passwordError, setPasswordError] = React.useState(false);
-  const [passwordErrorMessage, setPasswordErrorMessage] = React.useState('');
-  const [nameError, setNameError] = React.useState(false);
-  const [nameErrorMessage, setNameErrorMessage] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
+  const [emailError, setEmailError] = useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const [nameError, setNameError] = useState(false);
+  const [nameErrorMessage, setNameErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const validateInputs = () => {
     const email = document.getElementById('email') as HTMLInputElement;
@@ -88,9 +88,9 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
       setEmailErrorMessage('');
     }
 
-    if (!password.value || password.value.length < 6) {
+    if (!password.value || password.value.length < 8) {
       setPasswordError(true);
-      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      setPasswordErrorMessage('Password must be at least 8 characters long.');
       isValid = false;
     } else {
       setPasswordError(false);
@@ -109,17 +109,13 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
     return isValid;
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    console.log('handleSubmit called');
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     // Validate inputs first
     if (!validateInputs()) {
-      console.log('Validation failed');
       return;
     }
-
-    console.log('Validation passed, proceeding with signup');
 
     setLoading(true);
     const data = new FormData(event.currentTarget);
@@ -128,26 +124,44 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
     const name = data.get('name') as string;
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: name,
+            name: name,
           },
         },
       });
 
-      if (error) {
-        setEmailError(true);
-        setEmailErrorMessage(error.message);
-      } else {
-        setEmailError(false);
-        setEmailErrorMessage('Please check your email for a confirmation link before signing in.');
+      if (authError) {
+        toast.error(authError.message);
+        return;
       }
+
+      if (authData.user) {
+        const { error: dbError } = await supabase
+          .from('users')
+          .upsert([
+            {
+              id: authData.user.id,
+              email: email,
+              name: name,
+            }
+          ]);
+
+        if (dbError) {
+          console.error('Error storing user data:', dbError);
+          toast.error('Failed to save user profile');
+          return;
+        }
+      }
+
+      toast.success('Account created successfully! Welcome to QA Chatbot!');
+      router.push('/dashboard');
+
     } catch (error) {
-      setEmailError(true);
-      setEmailErrorMessage('An unexpected error occurred');
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -159,7 +173,16 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
       <ColorModeSelect sx={{ position: 'fixed', top: '1rem', right: '1rem' }} />
       <SignUpContainer direction="column" justifyContent="space-between">
         <Card variant="outlined">
-          <SitemarkIcon />
+          <img
+            src="/mascot.svg"
+            alt="QA Chatbot Mascot"
+            width={60}
+            height={60}
+            style={{
+              alignSelf: 'center',
+              display: 'block'
+            }}
+          />
           <Typography
             component="h1"
             variant="h4"
@@ -180,7 +203,7 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
                 required
                 fullWidth
                 id="name"
-                placeholder="Jon Snow"
+                placeholder="your name"
                 error={nameError}
                 helperText={nameErrorMessage}
                 color={nameError ? 'error' : 'primary'}
@@ -217,16 +240,11 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
                 color={passwordError ? 'error' : 'primary'}
               />
             </FormControl>
-            <FormControlLabel
-              control={<Checkbox value="allowExtraEmails" color="primary" />}
-              label="I want to receive updates via email."
-            />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               disabled={loading}
-              onClick={() => console.log('Button clicked')}
             >
               {loading ? 'Signing up...' : 'Sign up'}
             </Button>
