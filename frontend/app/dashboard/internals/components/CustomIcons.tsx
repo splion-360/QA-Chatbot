@@ -8,7 +8,7 @@ export function QAChatbotIcon() {
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <Box
         component="img"
-        src="/chatbot.svg"
+        src="/mascot.svg"
         alt="QA Chatbot"
         sx={{
           width: 32,
@@ -18,8 +18,8 @@ export function QAChatbotIcon() {
       <Typography
         variant="h6"
         component="div"
-        sx={{ 
-          fontWeight: 600, 
+        sx={{
+          fontWeight: 600,
           color: 'primary.main',
           fontSize: '1.1rem'
         }}

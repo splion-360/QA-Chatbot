@@ -85,7 +85,7 @@ export function CustomIcon() {
   return (
     <Box
       component="img"
-      src="/chatbot.svg"
+      src="/mascot.svg"
       alt="QA Chatbot"
       sx={{
         width: '1.5rem',

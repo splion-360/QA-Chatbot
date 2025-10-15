@@ -110,7 +110,7 @@ export default function OptionsMenu({ onUserDataUpdate }: OptionsMenuProps) {
           </ListItemIcon>
         </MenuItem>
       </Menu>
-      
+
       <AccountManagementDialog
         open={accountDialogOpen}
         onClose={() => setAccountDialogOpen(false)}

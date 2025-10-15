@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const environment = process.env.ENVIRONMENT || "production";
+const environment = process.env.NODE_ENV || "production";
 
 let supabaseUrl: string;
 let supabaseAnonKey: string;
@@ -25,7 +25,7 @@ export const createClient = async () => {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
+            cookieStore.set(name, value, { ...options, path: "/" }),
           );
         } catch {
           // The `setAll` method was called from a Server Component.

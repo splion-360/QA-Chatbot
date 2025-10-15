@@ -23,4 +23,33 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ibm-plex-mono), monospace;
+  transition: none;
+}
+
+/* Prevent layout shifts and theme flashing */
+html {
+  color-scheme: light dark;
+}
+
+/* Smooth page transitions */
+main {
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Prevent color flashing on theme switches */
+*,
+*::before,
+*::after {
+  transition: none !important;
+}
+
+/* Override MUI transitions that might cause jitter */
+.MuiCssBaseline-root {
+  transition: none !important;
+}
+
+/* Ensure consistent background for auth pages */
+[data-mui-color-scheme] {
+  transition: none !important;
 }

@@ -1,21 +1,23 @@
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, FormEvent } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import CssBaseline from '@mui/material/CssBaseline';
+import Divider from '@mui/material/Divider';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
+import FormControl from '@mui/material/FormControl';
+import Link from '@mui/material/Link';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
-import Link from '@mui/material/Link';
 import { styled } from '@mui/material/styles';
-import Alert from '@mui/material/Alert';
-import CircularProgress from '@mui/material/CircularProgress';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import AppTheme from '../shared-theme/AppTheme';
 import ColorModeSelect from '../shared-theme/ColorModeSelect';
-import { GoogleIcon } from './components/CustomIcons';
 import { createClient } from '@utils/supabase/client';
-import { handleAuthError } from '@utils/supabase/auth-helpers';
-import { config } from '@utils/config';
 
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
@@ -60,37 +62,107 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
 }));
 
 export default function SignUp(props: { disableCustomTheme?: boolean }) {
-  const [loading, setLoading] = React.useState(false);
-  const [authError, setAuthError] = React.useState('');
-  
   const router = useRouter();
   const supabase = createClient();
+  const [emailError, setEmailError] = useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const [nameError, setNameError] = useState(false);
+  const [nameErrorMessage, setNameErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  const validateInputs = () => {
+    const email = document.getElementById('email') as HTMLInputElement;
+    const password = document.getElementById('password') as HTMLInputElement;
+    const name = document.getElementById('name') as HTMLInputElement;
 
-  const handleGoogleSignUp = async () => {
+    let isValid = true;
+
+    if (!email.value || !/\S+@\S+\.\S+/.test(email.value)) {
+      setEmailError(true);
+      setEmailErrorMessage('Please enter a valid email address.');
+      isValid = false;
+    } else {
+      setEmailError(false);
+      setEmailErrorMessage('');
+    }
+
+    if (!password.value || password.value.length < 8) {
+      setPasswordError(true);
+      setPasswordErrorMessage('Password must be at least 8 characters long.');
+      isValid = false;
+    } else {
+      setPasswordError(false);
+      setPasswordErrorMessage('');
+    }
+
+    if (!name.value || name.value.length < 1) {
+      setNameError(true);
+      setNameErrorMessage('Name is required.');
+      isValid = false;
+    } else {
+      setNameError(false);
+      setNameErrorMessage('');
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    // Validate inputs first
+    if (!validateInputs()) {
+      return;
+    }
+
     setLoading(true);
-    setAuthError('');
+    const data = new FormData(event.currentTarget);
+    const email = data.get('email') as string;
+    const password = data.get('password') as string;
+    const name = data.get('name') as string;
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          redirectTo: `${typeof window !== 'undefined' ? window.location.origin : config.baseUrl}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
+          data: {
+            name: name,
           },
         },
       });
 
-      if (error) {
-        await handleAuthError(error);
-        setAuthError(error.message);
-        setLoading(false);
+      if (authError) {
+        toast.error(authError.message);
+        return;
       }
-      // Don't set loading to false here as user will be redirected
-    } catch (error: any) {
-      await handleAuthError(error);
-      setAuthError('An unexpected error occurred. Please try again.');
+
+      if (authData.user) {
+        const { error: dbError } = await supabase
+          .from('users')
+          .upsert([
+            {
+              id: authData.user.id,
+              email: email,
+              name: name,
+            }
+          ]);
+
+        if (dbError) {
+          console.error('Error storing user data:', dbError);
+          toast.error('Failed to save user profile');
+          return;
+        }
+      }
+
+      toast.success('Account created successfully! Welcome to QA Chatbot!');
+      router.push('/dashboard');
+
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
       setLoading(false);
     }
   };
@@ -101,24 +173,16 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
       <ColorModeSelect sx={{ position: 'fixed', top: '1rem', right: '1rem' }} />
       <SignUpContainer direction="column" justifyContent="space-between">
         <Card variant="outlined">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Box
-              component="img"
-              src="/chatbot.svg"
-              alt="QA Chatbot"
-              sx={{
-                width: 40,
-                height: 40,
-              }}
-            />
-            <Typography
-              variant="h5"
-              component="div"
-              sx={{ fontWeight: 600, color: 'primary.main' }}
-            >
-              QA Chatbot
-            </Typography>
-          </Box>
+          <img
+            src="/mascot.svg"
+            alt="QA Chatbot Mascot"
+            width={60}
+            height={60}
+            style={{
+              alignSelf: 'center',
+              display: 'block'
+            }}
+          />
           <Typography
             component="h1"
             variant="h4"
@@ -126,38 +190,75 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
           >
             Sign up
           </Typography>
-          
-          {authError && (
-            <Alert severity="error" sx={{ width: '100%' }}>
-              {authError}
-            </Alert>
-          )}
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
+            <FormControl>
+              <FormLabel htmlFor="name">Full name</FormLabel>
+              <TextField
+                autoComplete="name"
+                name="name"
+                required
+                fullWidth
+                id="name"
+                placeholder="your name"
+                error={nameError}
+                helperText={nameErrorMessage}
+                color={nameError ? 'error' : 'primary'}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel htmlFor="email">Email</FormLabel>
+              <TextField
+                required
+                fullWidth
+                id="email"
+                placeholder="your@email.com"
+                name="email"
+                autoComplete="email"
+                variant="outlined"
+                error={emailError}
+                helperText={emailErrorMessage}
+                color={emailError ? 'error' : 'primary'}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel htmlFor="password">Password</FormLabel>
+              <TextField
+                required
+                fullWidth
+                name="password"
+                placeholder="••••••"
+                type="password"
+                id="password"
+                autoComplete="new-password"
+                variant="outlined"
+                error={passwordError}
+                helperText={passwordErrorMessage}
+                color={passwordError ? 'error' : 'primary'}
+              />
+            </FormControl>
             <Button
+              type="submit"
               fullWidth
               variant="contained"
-              onClick={handleGoogleSignUp}
-              startIcon={<GoogleIcon />}
               disabled={loading}
-              sx={{ position: 'relative' }}
             >
-              {loading && (
-                <CircularProgress size={24} sx={{ position: 'absolute' }} />
-              )}
-              {loading ? 'Signing up...' : 'Sign up with Google'}
+              {loading ? 'Signing up...' : 'Sign up'}
             </Button>
-            <Typography sx={{ textAlign: 'center' }}>
-              Already have an account?{' '}
-              <Link
-                href="/sign-in"
-                variant="body2"
-                sx={{ alignSelf: 'center' }}
-              >
-                Sign in
-              </Link>
-            </Typography>
           </Box>
+          <Typography sx={{ textAlign: 'center' }}>
+            Already have an account?{' '}
+            <Link
+              href="/sign-in"
+              variant="body2"
+              sx={{ alignSelf: 'center' }}
+            >
+              Sign in
+            </Link>
+          </Typography>
         </Card>
       </SignUpContainer>
     </AppTheme>
