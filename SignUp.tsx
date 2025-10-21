@@ -135,30 +135,38 @@ export default function SignUp(props: { disableCustomTheme?: boolean }) {
       });
 
       if (authError) {
-        toast.error(authError.message);
+        console.error('Error signing up:', authError);
+        toast.error(authError.message || 'Failed to create account');
         return;
       }
 
+      // if (authData.user) {
+      //   const { error: dbError } = await supabase
+      //     .from('users')
+      //     .upsert([
+      //       {
+      //         id: authData.user.id,
+      //         email: email,
+      //         name: name,
+      //       }
+      //     ]);
+
+      //   if (dbError) {
+      //     console.error('Error storing user data:', dbError);
+      //     toast.error('Failed to save user profile');
+      //     return;
+      //   }
+      // }
+
+      // toast.success('Account created successfully! Welcome to QA Chatbot!');
+      // router.push('/dashboard');
+
       if (authData.user) {
-        const { error: dbError } = await supabase
-          .from('users')
-          .upsert([
-            {
-              id: authData.user.id,
-              email: email,
-              name: name,
-            }
-          ]);
-
-        if (dbError) {
-          console.error('Error storing user data:', dbError);
-          toast.error('Failed to save user profile');
-          return;
-        }
+        // User profile is automatically created by database trigger
+        // No manual insert needed!
+        toast.success('Account created successfully! Welcome to QA Chatbot!');
+        router.push('/dashboard');
       }
-
-      toast.success('Account created successfully! Welcome to QA Chatbot!');
-      router.push('/dashboard');
 
     } catch (error) {
       toast.error('An unexpected error occurred');
