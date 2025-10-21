@@ -2,12 +2,14 @@
 fastapi==0.115.4
 uvicorn[standard]==0.32.0
 
+# Database & Cache
+redis==5.2.0
 
-redis==5.0.1
-rq==1.16.2
+# Message Queue
+rq==2.0.0
 
 # HTTP Client
-httpx>=0.26.0,<0.28.0
+httpx==0.28.0
 
 # Data Validation
 pydantic==2.10.2
@@ -27,18 +29,12 @@ pytest-cov==6.0.0
 python-dotenv==1.0.1
 
 # CORS
-python-multipart==0.0.18
+python-multipart==0.0.17
 
-# AI/ML for RAG implementation
+# Optional: AI/ML (for future RAG implementation)
 openai==1.54.4
-pypdf>=3.9.0
-transformers==4.53.0
-torch==2.8.0
-sentence-transformers==3.0.1
+# langchain==0.3.7
+# chromadb==0.5.23
 
-# Database
-asyncpg==0.29.0
-supabase==2.9.1
-
-# File handling
-aiofiles==24.1.0
+# HTTP Client
+httpx==0.27.0
