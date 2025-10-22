@@ -30,7 +30,7 @@ python-multipart==0.0.18
 
 # AI/ML for RAG implementation
 openai==1.54.4
-PyPDF2==3.0.1
+pypdf>=3.9.0
 
 # Database
 asyncpg==0.29.0
