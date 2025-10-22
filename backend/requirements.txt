@@ -26,7 +26,7 @@ pytest-cov==6.0.0
 python-dotenv==1.0.1
 
 # CORS
-python-multipart==0.0.17
+python-multipart==0.0.18
 
 # AI/ML for RAG implementation
 openai==1.54.4
