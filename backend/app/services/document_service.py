@@ -3,7 +3,7 @@ from io import BytesIO
 from typing import Any
 
 from fastapi import HTTPException, UploadFile
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 from app.config import (
     CHUNK_OVERLAP,
