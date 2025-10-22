@@ -24,8 +24,7 @@ function MediaContent() {
   };
 
   const handleUploadSuccess = () => {
-    setRefreshTrigger(prev => prev + 1);
-    setActiveTab(1); // Switch to manage tab after successful upload
+    // Document is queued for processing - no need to refresh or switch tabs
   };
 
   return (

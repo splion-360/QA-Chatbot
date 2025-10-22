@@ -7,15 +7,15 @@ export async function GET(request: Request) {
   const type = searchParams.get('type');
   const next = searchParams.get('next') || '/dashboard';
 
-  console.log('=== AUTH CALLBACK DEBUG ===');
-  console.log('Full URL:', request.url);
-  console.log('Auth callback received:', {
-    code: code ? 'present' : 'missing',
-    type: type,
-    next: next,
-    origin: origin,
-    searchParams: Object.fromEntries(searchParams.entries())
-  });
+  // console.log('=== AUTH CALLBACK DEBUG ===');
+  // console.log('Full URL:', request.url);
+  // console.log('Auth callback received:', {
+  //   code: code ? 'present' : 'missing',
+  //   type: type,
+  //   next: next,
+  //   origin: origin,
+  //   searchParams: Object.fromEntries(searchParams.entries())
+  // });
 
   if (code) {
     const supabase = await createClient();
