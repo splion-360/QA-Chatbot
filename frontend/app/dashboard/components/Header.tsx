@@ -26,9 +26,9 @@ export default function Header() {
       <Stack direction="row" sx={{ gap: 1 }}>
         <Search />
         <CustomDatePicker />
-        <MenuButton showBadge aria-label="Open notifications">
+        {/* <MenuButton showBadge aria-label="Open notifications">
           <NotificationsRoundedIcon />
-        </MenuButton>
+        </MenuButton> */}
         <ColorModeIconDropdown />
       </Stack>
     </Stack>

@@ -22,32 +22,69 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [dragOver, setDragOver] = React.useState(false);
   const { showToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const validateFile = (file: File) => {
+    if (file.type !== 'application/pdf') {
+      setError('Please select a PDF file only');
+      return false;
+    }
+
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      setError('File size must be less than 100MB');
+      return false;
+    }
+
+    setError('');
+    return true;
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      setError('Please select a PDF file only');
+    if (validateFile(file)) {
+      setSelectedFile(file);
+      if (!title) {
+        setTitle(file.name.replace('.pdf', ''));
+      }
+    } else {
       setSelectedFile(null);
-      return;
     }
+  };
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      setError('File size must be less than 10MB');
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setDragOver(false);
+
+    const files = event.dataTransfer.files;
+    const file = files[0];
+
+    if (file && validateFile(file)) {
+      setSelectedFile(file);
+      if (!title) {
+        setTitle(file.name.replace('.pdf', ''));
+      }
+    } else {
       setSelectedFile(null);
-      return;
     }
-
-    setError('');
-    setSelectedFile(file);
   };
 
   const handleUpload = async () => {
     console.log('Upload button clicked', { selectedFile: !!selectedFile, title: title.trim(), uploading });
-    
+
     if (!selectedFile || !title.trim()) {
       setError('Please provide both a title and select a PDF file');
       return;
@@ -61,18 +98,21 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       formData.append('file', selectedFile);
       formData.append('title', title.trim());
 
-      const response = await fetch('/api/document', {
+      const response = await fetch('/api/documents', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Please sign in to upload documents');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Upload failed');
       }
 
-      showToast('Document uploaded successfully!', 'success');
-      
+      showToast('Document uploaded successfully and will be available soon!', 'success');
+
       // Reset form only on successful upload
       setTitle('');
       setSelectedFile(null);
@@ -130,23 +170,27 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
             style={{ display: 'none' }}
             disabled={uploading}
           />
-          
+
           {!selectedFile ? (
             <Button
               variant="outlined"
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               startIcon={<CloudUploadIcon />}
-              sx={{ 
+              sx={{
                 height: 120,
                 width: '100%',
                 borderStyle: 'dashed',
                 borderWidth: 2,
                 borderRadius: 2,
-                borderColor: 'text.secondary',
-                color: 'text.primary',
-                bgcolor: 'background.paper',
+                borderColor: dragOver ? 'primary.main' : 'text.secondary',
+                color: dragOver ? 'primary.main' : 'text.primary',
+                bgcolor: dragOver ? 'action.hover' : 'background.paper',
                 flexDirection: 'column',
                 gap: 1,
+                transition: 'all 0.2s ease',
                 '&:hover': {
                   borderColor: 'primary.main',
                   bgcolor: 'action.hover',
@@ -155,18 +199,20 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
               }}
               disabled={uploading}
             >
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>Click to select PDF file</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                {dragOver ? 'Drop PDF file here' : 'Click to select PDF file or drag & drop'}
+              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Maximum file size: 10MB
+                Maximum file size: 100MB
               </Typography>
             </Button>
           ) : (
-            <Paper 
-              variant="outlined" 
-              sx={{ 
-                p: 2, 
-                display: 'flex', 
-                alignItems: 'center', 
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                display: 'flex',
+                alignItems: 'center',
                 gap: 2,
                 bgcolor: 'background.default',
                 borderRadius: 2,
@@ -226,11 +272,8 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
         >
           {uploading ? 'Uploading...' : 'Upload Document'}
         </Button>
-        
+
         {/* Debug info */}
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-          Debug: File={!!selectedFile ? 'Yes' : 'No'}, Title={title.length > 0 ? 'Yes' : 'No'}, Uploading={uploading ? 'Yes' : 'No'}
-        </Typography>
       </Stack>
     </Paper>
   );

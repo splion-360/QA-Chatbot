@@ -21,10 +21,11 @@ interface DocumentPreviewProps {
 }
 
 interface DocumentContent {
-  id: string;
+  document_id: string;
   title: string;
-  content: string;
-  created_at: string;
+  preview: string;
+  total_length: number;
+  chunks: number;
 }
 
 export default function DocumentPreview({ 
@@ -55,6 +56,9 @@ export default function DocumentPreview({
       const response = await fetch(`/api/document/${documentId}`);
       
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Please sign in to view document content');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to load document content');
       }
@@ -109,7 +113,7 @@ export default function DocumentPreview({
             </Typography>
             {content && (
               <Typography variant="caption" color="text.secondary">
-                Uploaded on {formatDate(content.created_at)}
+                {content.chunks} chunks • {content.total_length} characters
               </Typography>
             )}
           </Box>
@@ -138,7 +142,7 @@ export default function DocumentPreview({
         ) : content ? (
           <Box>
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-              Content Preview (First 1000 characters)
+              Content Preview (First 500 characters)
             </Typography>
             <Box
               sx={{
@@ -155,8 +159,8 @@ export default function DocumentPreview({
                 whiteSpace: 'pre-wrap',
               }}
             >
-              {content.content}
-              {content.content.length >= 1000 && (
+              {content.preview}
+              {content.preview.length >= 500 && (
                 <Typography 
                   variant="caption" 
                   sx={{ 
@@ -166,7 +170,7 @@ export default function DocumentPreview({
                     color: 'text.secondary'
                   }}
                 >
-                  ... (content truncated to 1000 characters)
+                  ... (content truncated to 500 characters)
                 </Typography>
               )}
             </Box>

@@ -24,16 +24,16 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import Pagination from '@mui/material/Pagination';
 import DocumentPreview from './DocumentPreview';
 import { useToast } from '../ToastProvider';
 
 interface Document {
-  id: string;
+  document_id: string;
   title: string;
   filename: string;
-  size: number;
+  file_size: number;
   created_at: string;
-  updated_at: string;
 }
 
 interface DocumentManagementProps {
@@ -48,26 +48,34 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
   const [previewDialogOpen, setPreviewDialogOpen] = React.useState(false);
   const [selectedDocument, setSelectedDocument] = React.useState<Document | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [totalDocuments, setTotalDocuments] = React.useState(0);
   const { showToast } = useToast();
 
   React.useEffect(() => {
     fetchDocuments();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, currentPage]);
 
   const fetchDocuments = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/documents');
-      
+      const response = await fetch(`/api/documents?page=${currentPage}&limit=10`);
+
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Please sign in to access your documents');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to load documents');
       }
 
       const data = await response.json();
       setDocuments(data.documents || []);
+      setTotalDocuments(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.pages || 1);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load documents';
       setError(errorMessage);
@@ -93,20 +101,22 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
     setDeleting(true);
 
     try {
-      const response = await fetch(`/api/document/${selectedDocument.id}`, {
+      const response = await fetch(`/api/document/${selectedDocument.document_id}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Please sign in to delete documents');
+        }
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to delete document');
       }
 
       showToast('Document deleted successfully', 'success');
-      
-      // Remove document from local state
-      setDocuments(prev => prev.filter(doc => doc.id !== selectedDocument.id));
-      
+
+      setDocuments(prev => prev.filter(doc => doc.document_id !== selectedDocument.document_id));
+
       setDeleteDialogOpen(false);
       setSelectedDocument(null);
     } catch (error) {
@@ -142,10 +152,10 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
   if (loading) {
     return (
       <Paper sx={{ p: 4 }}>
-        <Box sx={{ 
-          display: 'flex', 
+        <Box sx={{
+          display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center', 
+          alignItems: 'center',
           justifyContent: 'center',
           py: 4,
           gap: 2
@@ -162,8 +172,8 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
   if (error) {
     return (
       <Paper sx={{ p: 4 }}>
-        <Alert 
-          severity="error" 
+        <Alert
+          severity="error"
           action={
             <Button size="small" onClick={fetchDocuments}>
               Retry
@@ -180,9 +190,16 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
     <>
       <Paper sx={{ p: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            Manage Documents
-          </Typography>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              Manage Documents
+            </Typography>
+            {totalDocuments > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                {totalDocuments} document{totalDocuments !== 1 ? 's' : ''} • Page {currentPage} of {totalPages}
+              </Typography>
+            )}
+          </Box>
           <Button
             startIcon={<RefreshIcon />}
             onClick={fetchDocuments}
@@ -194,8 +211,8 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
         </Box>
 
         {documents.length === 0 ? (
-          <Box sx={{ 
-            textAlign: 'center', 
+          <Box sx={{
+            textAlign: 'center',
             py: 6,
             display: 'flex',
             flexDirection: 'column',
@@ -216,7 +233,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
               <TableHead>
                 <TableRow>
                   <TableCell>Document</TableCell>
-                  <TableCell>File Name</TableCell>
+                  <TableCell>Filename</TableCell>
                   <TableCell>Size</TableCell>
                   <TableCell>Uploaded</TableCell>
                   <TableCell align="right">Actions</TableCell>
@@ -224,7 +241,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
               </TableHead>
               <TableBody>
                 {documents.map((document) => (
-                  <TableRow key={document.id} hover>
+                  <TableRow key={document.document_id} hover>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <PictureAsPdfIcon color="error" />
@@ -239,9 +256,9 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={formatFileSize(document.size)} 
-                        size="small" 
+                      <Chip
+                        label={formatFileSize(document.file_size)}
+                        size="small"
                         variant="outlined"
                       />
                     </TableCell>
@@ -273,6 +290,20 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
             </Table>
           </TableContainer>
         )}
+
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <Pagination
+              count={totalPages}
+              page={currentPage}
+              onChange={(event, page) => setCurrentPage(page)}
+              color="primary"
+              size="medium"
+              showFirstButton
+              showLastButton
+            />
+          </Box>
+        )}
       </Paper>
 
       {/* Delete Confirmation Dialog */}
@@ -283,18 +314,18 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
         <DialogTitle>Delete Document</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete "{selectedDocument?.title}"? 
+            Are you sure you want to delete "{selectedDocument?.title}"?
             This action cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setDeleteDialogOpen(false)}
             disabled={deleting}
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleDeleteConfirm}
             color="error"
             variant="contained"
@@ -310,7 +341,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
       <DocumentPreview
         open={previewDialogOpen}
         onClose={() => setPreviewDialogOpen(false)}
-        documentId={selectedDocument?.id || null}
+        documentId={selectedDocument?.document_id || null}
         documentTitle={selectedDocument?.title}
       />
     </>
