@@ -1,8 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import logger
-from app.mq.activities import enqueue_task
-from app.mq.worker import DocumentProcessingWorkflow
+from app.mq.queue import enqueue_task
 from app.schemas.documents import (
     DocumentDetail,
     DocumentList,
@@ -13,7 +12,7 @@ from app.services.document_service import (
     delete_document,
     get_document,
     get_documents,
-    validate_file,
+    process_file,
 )
 
 
@@ -27,16 +26,11 @@ async def upload_document(
     user_id: str = Query(...),
     title: str = Form(None),
 ):
-    validate_file(file)
-
-    file_data = await file.read()
-    workflow_id = await enqueue_task(
-        DocumentProcessingWorkflow, [file_data, file.filename, user_id, title]
-    )
+    job_id = await enqueue_task(process_file, [file, user_id, title])
 
     return UploadResponse(
         message="Document upload queued for processing",
-        job_id=workflow_id,
+        job_id=job_id,
         filename=file.filename,
     )
 

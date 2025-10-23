@@ -19,8 +19,11 @@ from app.config import (
     SUPPORTED_FILE_TYPES,
     get_async_openai_client,
     get_supabase_client,
-    logger,
+    setup_logger,
 )
+
+
+logger = setup_logger("document-service")
 
 
 def extract_text(pdf_file: bytes) -> str:
