@@ -3,10 +3,11 @@ import os
 from typing import Literal
 
 from dotenv import load_dotenv
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
 from supabase import Client as SU_Client
 from supabase import create_client
-from temporalio.client import Client as TE_Client
+
+import redis
 
 
 load_dotenv()
@@ -21,24 +22,22 @@ else:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
-_openai_client: OpenAI | None = None
 _async_openai_client: AsyncOpenAI | None = None
 _supabase_client: SU_Client | None = None
-_temporal_client: TE_Client | None = None
+_redis_client: redis.Redis | None = None
 
-TEMPORAL_TASK_QUEUE = "qa-chatbot"
-TEMPORAL_NAMESPACE = "workers"
-TEMPORAL_PORT = 7233
-TEMPORAL_MAX_WORKERS = 2
-TEMPORAL_RETRY_POLICY = {
-    "maximum_attempts": 3,
-    "initial_interval_seconds": 10,
-    "maximum_interval_seconds": 60,
-    "backoff_coefficient": 2.0,
-}
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+REDIS_DB = 0
+REDIS_QUEUE = ["qa-chatbot"]
+REDIS_MAX_WORKERS = 2
+REDIS_DEFAULT_TTL = 300
+REDIS_MAX_RETRY = 3
+REDIS_RETRY_INTERVALS = [10, 20, 30]
+REDIS_TIMEOUT = 30  # s
 
 LOG_COLORS = {
     "RED": "\033[31m",
@@ -81,7 +80,10 @@ class ColoredFormatter(logging.Formatter):
 
     def format(self, record):
         message = super().format(record)
-        color = self.colors.get(record.levelno, "WHITE")
+        if hasattr(record, "custom_color") and record.custom_color:
+            color = record.custom_color
+        else:
+            color = self.colors.get(record.levelno, "WHITE")
         return f"{LOG_COLORS[color]}{message}{LOG_COLORS['RESET']}"
 
 
@@ -143,7 +145,7 @@ def setup_logger(name: str = __name__) -> CustomLogger:
     return CustomLogger(logger)
 
 
-logger = setup_logger()
+logger = setup_logger("config")
 
 # Document Processing Configuration
 CHUNK_SIZE = 1000
@@ -165,21 +167,14 @@ DEFAULT_SEARCH_LIMIT = 10
 MAX_SEARCH_LIMIT = 50
 
 
-def get_openai_client() -> OpenAI:
-    global _openai_client
-    if not _openai_client:
-        if not OPENAI_API_KEY:
-            raise ValueError("OpenAI API key not configured")
-        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
-    return _openai_client
-
-
 def get_async_openai_client() -> AsyncOpenAI:
     global _async_openai_client
     if not _async_openai_client:
-        if not OPENAI_API_KEY:
+        if not OPENROUTER_API_KEY:
             raise ValueError("OpenAI API key not configured")
-        _async_openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+        _async_openai_client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY
+        )
     return _async_openai_client
 
 
@@ -192,26 +187,29 @@ def get_supabase_client() -> SU_Client:
     return _supabase_client
 
 
-async def get_temporal_client() -> TE_Client:
-    global _temporal_client
-    if not _temporal_client:
+def get_redis_client() -> redis.Redis:
+    global _redis_client
+    if not _redis_client:
         try:
-            _temporal_client = await TE_Client.connect(
-                f"localhost:{TEMPORAL_PORT}",
-                namespace=TEMPORAL_NAMESPACE,
+            _redis_client = redis.Redis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                db=REDIS_DB,
+                decode_responses=False,
             )
+            _redis_client.ping()
             logger.info(
-                f"Connected to Temporal @ http://localhost:{TEMPORAL_PORT}",
-                "GREEN",
+                f"Connected to Redis @ {REDIS_HOST}:{REDIS_PORT}",
+                "BLUE",
             )
         except Exception as e:
-            logger.error(f"Failed to connect to Temporal: {e}", "GREEN")
+            logger.error(f"Failed to connect to Redis: {e}", "BLUE")
             raise
-    return _temporal_client
+    return _redis_client
 
 
-async def close_temporal_client():
-    global _temporal_client
-    if _temporal_client:
-        await _temporal_client.close()
-        _temporal_client = None
+def close_redis_client():
+    global _redis_client
+    if _redis_client:
+        _redis_client.close()
+        _redis_client = None
