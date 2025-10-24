@@ -3,9 +3,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import logger
 from app.mq.queue import enqueue_task
 from app.schemas.documents import (
-    DocumentDetail,
     DocumentList,
-    DocumentPreview,
     UploadResponse,
 )
 from app.services.document_service import (
@@ -13,6 +11,7 @@ from app.services.document_service import (
     get_document,
     get_documents,
     process_file,
+    search_documents,
 )
 
 
@@ -40,9 +39,15 @@ async def list_documents(
     user_id: str = Query(...),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=50),
+    search: str = Query(None, description="Search query for document titles and content"),
+    search_type: str = Query("title"),
 ):
     offset = (page - 1) * limit
-    result = await get_documents(user_id, offset, limit)
+    
+    if search and search.strip():
+        result = await search_documents(user_id, search.strip(), search_type, offset, limit)
+    else:
+        result = await get_documents(user_id, offset, limit)
 
     return DocumentList(
         documents=result["documents"],
@@ -55,17 +60,17 @@ async def list_documents(
     )
 
 
-@router.get("/{document_id}", response_model=DocumentDetail)
-async def get_document_detail(document_id: str, user_id: str = Query(...)):
+@router.get("/{document_id}")
+async def fetch_document(document_id: str, user_id: str = Query(...)):
     document = await get_document(document_id, user_id)
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    return DocumentDetail(**document)
+    return document
 
 
-@router.get("/{document_id}/preview", response_model=DocumentPreview)
+@router.get("/{document_id}/preview")
 async def preview_document(document_id: str, user_id: str = Query(...)):
     document = await get_document(document_id, user_id)
 
@@ -76,17 +81,17 @@ async def preview_document(document_id: str, user_id: str = Query(...)):
     if len(document["content"]) > 500:
         preview_content += "..."
 
-    return DocumentPreview(
-        document_id=document_id,
-        title=document["title"],
-        preview=preview_content,
-        total_length=len(document["content"]),
-        chunks=document["chunks"],
-    )
+    return {
+        "document_id": document_id,
+        "title": document["title"],
+        "preview": preview_content,
+        "total_length": len(document["content"]),
+        "chunks": document["chunks"],
+    }
 
 
 @router.delete("/{document_id}")
-async def delete_document_endpoint(document_id: str, user_id: str = Query(...)):
+async def delete(document_id: str, user_id: str = Query(...)):
     success = await delete_document(document_id, user_id)
 
     if not success:

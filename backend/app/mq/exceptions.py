@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from rq.job import Job
 
 from app.config import (
@@ -11,32 +13,37 @@ from app.mq.queue import get_queue
 logger = setup_logger("mq-exceptions")
 
 
-class DocumentProcessingError(Exception):
+class BaseException(Exception):
+    """
+    Base exception class for the project to enable MQ retries
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
+
+
+class DocumentProcessingError(BaseException):
     def __init__(self, document_id: str, user_id: str, reason: str):
         self.document_id = document_id
         self.user_id = user_id
         self.reason = reason
         message = f"Document processing failed for '{document_id}' (user: {user_id}): {reason}"
-        logger.error(f"DocumentProcessingError: {message}", "RED")
         super().__init__(message)
 
 
-class VectorizationError(Exception):
+class VectorizationError(BaseException):
     def __init__(self, document_id: str, reason: str):
         self.document_id = document_id
         self.reason = reason
         message = f"Vectorization failed for document '{document_id}': {reason}"
-        logger.error(f"VectorizationError: {message}", "RED")
         super().__init__(message)
 
 
-class DatabaseError(Exception):
-    def __init__(self, operation: str, table: str, reason: str):
+class DatabaseError(BaseException):
+    def __init__(self, operation: str, table: str, reason: str = None):
         self.operation = operation
         self.table = table
-        self.reason = reason
-        message = f"Database {operation} failed on '{table}': {reason}"
-        logger.error(f"DatabaseError: {message}", "RED")
+        message = f"Database {operation} failed on '{table}': {(reason or 'No information')}"
         super().__init__(message)
 
 
@@ -54,14 +61,8 @@ def generic_exception_handler(job: Job, exc_type, exc_value, traceback):
     retry_count = getattr(job.meta, "retry_count", 0)
     max_retries = REDIS_MAX_RETRY
 
-    if exc_type not in (
-        DatabaseError | VectorizationError | DocumentProcessingError
-    ):
+    if not issubclass(exc_type, BaseException):
         return
-
-    logger.error(
-        f"Job {job.id} failed with {exc_type.__name__}: {exc_value}", "RED"
-    )
 
     if retry_count < max_retries:
         if retry_count < len(REDIS_RETRY_INTERVALS):
@@ -78,18 +79,23 @@ def generic_exception_handler(job: Job, exc_type, exc_value, traceback):
         )
 
         queue_name = getattr(job.meta, "queue_name", "qa-chatbot")
+        allow_retry = getattr(job.meta, "allow_retry", True)
         queue = get_queue(queue_name)
 
-        job = queue.enqueue_in(
-            delay,
+        another_job = queue.enqueue_in(
+            timedelta(seconds=delay),
             job.func,
-            *job.args,
-            **job.kwargs,
+            args=job.args,
+            kwargs=job.kwargs,
             job_timeout=job.timeout,
-            meta={"retry_count": retry_count + 1, "queue_name": queue_name},
+            meta={
+                "retry_count": retry_count + 1,
+                "queue_name": queue_name,
+                "allow_retry": allow_retry,
+            },
         )
 
-        logger.info(f"Re-enqueued job as {job.id}", "BLUE")
+        logger.info(f"Re-enqueued job as {another_job.id}", "BLUE")
         return True
     else:
         logger.error(

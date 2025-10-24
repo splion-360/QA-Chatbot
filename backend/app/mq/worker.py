@@ -1,3 +1,5 @@
+import logging
+
 from rq import Worker
 
 from app.config import (
@@ -30,3 +32,6 @@ class ChatBotWorker(Worker):
             exception_handlers=exception_handlers,
             log_job_description=False,
         )
+
+        rq_logger = logging.getLogger("rq.worker")
+        rq_logger.setLevel(logging.WARNING)

@@ -14,10 +14,25 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const page = searchParams.get('page') || '1'
   const limit = searchParams.get('limit') || '10'
+  const search = searchParams.get('search')
+  const searchType = searchParams.get('search_type')
+
+  const backendParams = new URLSearchParams({
+    user_id: user.id,
+    page,
+    limit,
+  })
+  
+  if (search) {
+    backendParams.append('search', search)
+  }
+  if (searchType) {
+    backendParams.append('search_type', searchType)
+  }
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/documents/?user_id=${user.id}&page=${page}&limit=${limit}`,
+      `${BACKEND_URL}/api/v1/documents/?${backendParams.toString()}`,
       {
         method: 'GET',
         headers: {

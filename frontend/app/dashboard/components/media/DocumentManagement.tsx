@@ -13,7 +13,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
+import InfinityLoader from '../InfinityLoader';
 import Alert from '@mui/material/Alert';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -32,37 +32,77 @@ interface Document {
   document_id: string;
   title: string;
   filename: string;
-  file_size: number;
+  size: number;
   created_at: string;
 }
 
 interface DocumentManagementProps {
   refreshTrigger?: number;
+  searchQuery?: string;
+  isSearchActive?: boolean;
 }
 
-export default function DocumentManagement({ refreshTrigger }: DocumentManagementProps) {
-  const [documents, setDocuments] = React.useState<Document[]>([]);
-  const [loading, setLoading] = React.useState(true);
+// Global cache outside component to persist across mounts/unmounts
+let documentsCache: Record<string, {
+  documents: Document[];
+  totalDocuments: number;
+  totalPages: number;
+  lastFetched: number | null;
+}> = {};
+
+export default function DocumentManagement({ refreshTrigger, searchQuery = '', isSearchActive = false }: DocumentManagementProps) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const cacheKey = `${searchQuery}-${currentPage}`;
+  const currentCache = documentsCache[cacheKey] || { documents: [], totalDocuments: 0, totalPages: 1, lastFetched: null };
+
+  const [documents, setDocuments] = React.useState<Document[]>(currentCache.documents);
+  const [loading, setLoading] = React.useState(currentCache.documents.length === 0 && currentCache.lastFetched === null);
   const [error, setError] = React.useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = React.useState(false);
   const [selectedDocument, setSelectedDocument] = React.useState<Document | null>(null);
   const [deleting, setDeleting] = React.useState(false);
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [totalPages, setTotalPages] = React.useState(1);
-  const [totalDocuments, setTotalDocuments] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(currentCache.totalPages);
+  const [totalDocuments, setTotalDocuments] = React.useState(currentCache.totalDocuments);
+  const [lastFetched, setLastFetched] = React.useState<number | null>(currentCache.lastFetched);
   const { showToast } = useToast();
 
   React.useEffect(() => {
-    fetchDocuments();
-  }, [refreshTrigger, currentPage]);
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    const pageCache = documentsCache[cacheKey];
+    const now = Date.now();
+    const oneMinute = 60 * 1000;
+
+    if (!pageCache || !pageCache.lastFetched || (now - pageCache.lastFetched) >= oneMinute) {
+      fetchDocuments();
+    } else {
+      setDocuments(pageCache.documents);
+      setTotalDocuments(pageCache.totalDocuments);
+      setTotalPages(pageCache.totalPages);
+      setLastFetched(pageCache.lastFetched);
+      setLoading(false);
+    }
+  }, [refreshTrigger, currentPage, searchQuery]);
 
   const fetchDocuments = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`/api/documents?page=${currentPage}&limit=10`);
+      const searchParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10'
+      });
+      
+      if (searchQuery.trim()) {
+        searchParams.append('search', searchQuery.trim());
+        searchParams.append('search_type', 'title');
+      }
+      
+      const response = await fetch(`/api/documents?${searchParams.toString()}`);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -73,15 +113,46 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
       }
 
       const data = await response.json();
-      setDocuments(data.documents || []);
-      setTotalDocuments(data.pagination?.total || 0);
-      setTotalPages(data.pagination?.pages || 1);
+      const newDocuments = data.documents || [];
+      const newTotal = data.pagination?.total || 0;
+      const newPages = data.pagination?.pages || 1;
+      const now = Date.now();
+
+      setDocuments(newDocuments);
+      setTotalDocuments(newTotal);
+      setTotalPages(newPages);
+      setLastFetched(now);
+
+      // Update global cache for current search and page
+      documentsCache[cacheKey] = {
+        documents: newDocuments,
+        totalDocuments: newTotal,
+        totalPages: newPages,
+        lastFetched: now,
+      };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load documents';
       setError(errorMessage);
       showToast(`Failed to load documents: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    const startTime = Date.now();
+    setLastFetched(null);
+    if (documentsCache[cacheKey]) {
+      documentsCache[cacheKey].lastFetched = null;
+    }
+    
+    await fetchDocuments();
+    
+    const elapsedTime = Date.now() - startTime;
+    const minDuration = 2000;
+    
+    if (elapsedTime < minDuration) {
+      await new Promise(resolve => setTimeout(resolve, minDuration - elapsedTime));
     }
   };
 
@@ -98,6 +169,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
   const handleDeleteConfirm = async () => {
     if (!selectedDocument) return;
 
+    const startTime = Date.now();
     setDeleting(true);
 
     try {
@@ -115,7 +187,21 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
 
       showToast('Document deleted successfully', 'success');
 
-      setDocuments(prev => prev.filter(doc => doc.document_id !== selectedDocument.document_id));
+      const filteredDocuments = documents.filter(doc => doc.document_id !== selectedDocument.document_id);
+      const newTotal = totalDocuments - 1;
+      const now = Date.now();
+
+      setDocuments(filteredDocuments);
+      setTotalDocuments(newTotal);
+      setLastFetched(now);
+
+      // Update global cache for current search and page
+      documentsCache[cacheKey] = {
+        documents: filteredDocuments,
+        totalDocuments: newTotal,
+        totalPages,
+        lastFetched: now,
+      };
 
       setDeleteDialogOpen(false);
       setSelectedDocument(null);
@@ -123,7 +209,14 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
       showToast(`Delete failed: ${errorMessage}`, 'error');
     } finally {
-      setDeleting(false);
+      const elapsedTime = Date.now() - startTime;
+      const minDuration = 2000;
+      
+      if (elapsedTime < minDuration) {
+        setTimeout(() => setDeleting(false), minDuration - elapsedTime);
+      } else {
+        setDeleting(false);
+      }
     }
   };
 
@@ -160,7 +253,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
           py: 4,
           gap: 2
         }}>
-          <CircularProgress />
+          <InfinityLoader />
           <Typography color="text.secondary">
             Loading documents...
           </Typography>
@@ -175,7 +268,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
         <Alert
           severity="error"
           action={
-            <Button size="small" onClick={fetchDocuments}>
+            <Button size="small" onClick={handleManualRefresh}>
               Retry
             </Button>
           }
@@ -192,21 +285,25 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Manage Documents
+              {isSearchActive ? `Search Results` : 'Available Documents'}
             </Typography>
-            {totalDocuments > 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {totalDocuments} document{totalDocuments !== 1 ? 's' : ''} • Page {currentPage} of {totalPages}
-              </Typography>
-            )}
+
+            <Typography variant="body2" color="text.secondary">
+              {isSearchActive 
+                ? `${totalDocuments} result${totalDocuments !== 1 ? 's' : ''} for "${searchQuery}"${totalPages > 1 ? ` • Page ${currentPage} of ${totalPages}` : ''}`
+                : `Page ${currentPage} of ${totalPages}`
+              }
+            </Typography>
+
           </Box>
           <Button
-            startIcon={<RefreshIcon />}
-            onClick={fetchDocuments}
+            onClick={handleManualRefresh}
             variant="outlined"
             size="small"
+            sx={{ minWidth: 40, width: 40, height: 32 }}
+            title="Refresh documents"
           >
-            Refresh
+            <RefreshIcon fontSize="small" />
           </Button>
         </Box>
 
@@ -221,68 +318,68 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
           }}>
             <PictureAsPdfIcon sx={{ fontSize: 64, color: 'text.secondary' }} />
             <Typography variant="h6" color="text.secondary">
-              No documents uploaded yet
+              {isSearchActive ? 'No documents found' : 'No documents uploaded yet'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Upload your first PDF document to get started
+              {isSearchActive 
+                ? `No documents match your search for "${searchQuery}"`
+                : 'Upload your first PDF document to get started'
+              }
             </Typography>
           </Box>
         ) : (
           <TableContainer>
-            <Table>
+            <Table sx={{ border: '1px solid', borderColor: 'divider', '& .MuiTableCell-root': { borderBottom: '1px solid', borderColor: 'divider' } }} size="small">
               <TableHead>
-                <TableRow>
-                  <TableCell>Document</TableCell>
-                  <TableCell>Filename</TableCell>
-                  <TableCell>Size</TableCell>
-                  <TableCell>Uploaded</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 600, borderRight: '1px solid', borderColor: 'divider', py: 1 }}>Title</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, borderRight: '1px solid', borderColor: 'divider', py: 1 }}>Size</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, borderRight: '1px solid', borderColor: 'divider', py: 1 }}>Uploaded</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, py: 1 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {documents.map((document) => (
                   <TableRow key={document.document_id} hover>
-                    <TableCell>
+                    <TableCell sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PictureAsPdfIcon color="error" />
+                        <PictureAsPdfIcon color="error" fontSize="small" />
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {document.title}
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {document.filename}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
+
+                    <TableCell align="center" sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Chip
-                        label={formatFileSize(document.file_size)}
+                        label={formatFileSize(document.size)}
                         size="small"
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="center" sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Typography variant="body2" color="text.secondary">
                         {formatDate(document.created_at)}
                       </Typography>
                     </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => handlePreview(document)}
-                        title="Preview content"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteClick(document)}
-                        title="Delete document"
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                    <TableCell align="center" sx={{ py: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handlePreview(document)}
+                          title="Preview content"
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(document)}
+                          title="Delete document"
+                          color="error"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -296,7 +393,9 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
             <Pagination
               count={totalPages}
               page={currentPage}
-              onChange={(event, page) => setCurrentPage(page)}
+              onChange={(event, page) => {
+                setCurrentPage(page);
+              }}
               color="primary"
               size="medium"
               showFirstButton
@@ -330,7 +429,7 @@ export default function DocumentManagement({ refreshTrigger }: DocumentManagemen
             color="error"
             variant="contained"
             disabled={deleting}
-            startIcon={deleting ? <CircularProgress size={16} /> : <DeleteIcon />}
+            startIcon={deleting ? <InfinityLoader size={16} /> : <DeleteIcon />}
           >
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>

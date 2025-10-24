@@ -7,7 +7,7 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import LinearProgress from '@mui/material/LinearProgress';
+import InfinityLoader from '../InfinityLoader';
 import Alert from '@mui/material/Alert';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -90,6 +90,7 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       return;
     }
 
+    const startTime = Date.now();
     setUploading(true);
     setError('');
 
@@ -131,7 +132,14 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       showToast(`Upload failed: ${errorMessage}`, 'error');
       // Don't reset form on error so user can retry
     } finally {
-      setUploading(false);
+      const elapsedTime = Date.now() - startTime;
+      const minDuration = 2000;
+      
+      if (elapsedTime < minDuration) {
+        setTimeout(() => setUploading(false), minDuration - elapsedTime);
+      } else {
+        setUploading(false);
+      }
     }
   };
 
@@ -251,7 +259,7 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
             <Typography variant="body2" gutterBottom>
               Uploading document...
             </Typography>
-            <LinearProgress />
+            <InfinityLoader />
           </Box>
         )}
 
