@@ -5,7 +5,8 @@ from typing import Literal
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from supabase import Client as SU_Client
-from supabase import create_client
+from supabase import acreate_client
+from transformers import AutoModel, AutoTokenizer
 
 import redis
 
@@ -17,23 +18,30 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "production")
 if ENVIRONMENT == "development":
     SUPABASE_URL = os.getenv("SUPABASE_URL_DEV")
     SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY_DEV")
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY_DEV")
+
 
 else:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+HUGGING_FACE_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
 
 
 _async_openai_client: AsyncOpenAI | None = None
 _supabase_client: SU_Client | None = None
 _redis_client: redis.Redis | None = None
+_hf_tokenizer: AutoTokenizer | None = None
+_hf_model: AutoModel | None = None
 
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 REDIS_DB = 0
 REDIS_QUEUE = ["qa-chatbot"]
-REDIS_MAX_WORKERS = 2
+REDIS_MAX_WORKERS = 8
 REDIS_DEFAULT_TTL = 300
 REDIS_MAX_RETRY = 3
 REDIS_RETRY_INTERVALS = [10, 20, 30]
@@ -153,7 +161,7 @@ CHUNK_OVERLAP = 200
 MAX_FILE_SIZE_MB = 100
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_EMBEDDING_TOKENS = 8000
-EMBEDDING_MODEL = "text-embedding-ada-002"
+EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 SUMMARIZATION_MODEL = "gpt-3.5-turbo"
 MAX_SUMMARY_TOKENS = 500
 SUPPORTED_FILE_TYPES = ["application/pdf"]
@@ -178,12 +186,14 @@ def get_async_openai_client() -> AsyncOpenAI:
     return _async_openai_client
 
 
-def get_supabase_client() -> SU_Client:
+async def get_supabase_client() -> SU_Client:
     global _supabase_client
     if not _supabase_client:
-        if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
             raise ValueError("Supabase credentials not configured")
-        _supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        _supabase_client = await acreate_client(
+            SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+        )
     return _supabase_client
 
 
@@ -208,8 +218,15 @@ def get_redis_client() -> redis.Redis:
     return _redis_client
 
 
-def close_redis_client():
-    global _redis_client
-    if _redis_client:
-        _redis_client.close()
-        _redis_client = None
+def get_hf_tokenizer() -> AutoTokenizer:
+    global _hf_tokenizer
+    if not _hf_tokenizer:
+        _hf_tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL)
+    return _hf_tokenizer
+
+
+def get_hf_model() -> AutoModel:
+    global _hf_model
+    if not _hf_model:
+        _hf_model = AutoModel.from_pretrained(EMBEDDING_MODEL)
+    return _hf_model

@@ -8,7 +8,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import InfinityLoader from '../InfinityLoader';
 import Alert from '@mui/material/Alert';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useToast } from '../ToastProvider';
@@ -48,6 +48,7 @@ export default function DocumentPreview({
   const fetchDocumentContent = async () => {
     if (!documentId) return;
 
+    const startTime = Date.now();
     setLoading(true);
     setError('');
     setContent(null);
@@ -70,7 +71,14 @@ export default function DocumentPreview({
       setError(errorMessage);
       showToast(`Failed to load document: ${errorMessage}`, 'error');
     } finally {
-      setLoading(false);
+      const elapsedTime = Date.now() - startTime;
+      const minDuration = 2000;
+      
+      if (elapsedTime < minDuration) {
+        setTimeout(() => setLoading(false), minDuration - elapsedTime);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -130,7 +138,7 @@ export default function DocumentPreview({
             py: 4,
             gap: 2
           }}>
-            <CircularProgress />
+            <InfinityLoader />
             <Typography color="text.secondary">
               Loading document content...
             </Typography>
@@ -147,7 +155,7 @@ export default function DocumentPreview({
             <Box
               sx={{
                 p: 2,
-                bgcolor: 'grey.50',
+                bgcolor: 'background.default',
                 borderRadius: 1,
                 border: '1px solid',
                 borderColor: 'divider',

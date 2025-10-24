@@ -25,18 +25,10 @@ async def enqueue_task(
     func,
     args: list[any] = None,
     queue_name: str = "qa-chatbot",
-    task_timeout: int = None,
     allow_retry: bool = True,
     **kwargs,
 ) -> str:
     queue = get_queue(queue_name)
-    if not task_timeout or not isinstance(task_timeout, int):
-        logger.info("No (or) invalid timestamp argument provided!!")
-        logger.info(f"Using default timeout: {REDIS_TIMEOUT}")
-        task_timeout = REDIS_TIMEOUT
-
-    # Cap the task timeout to 30 minutes
-    task_timeout = min(task_timeout, 1800)
 
     # Add metadata for retry handling
     meta = {
@@ -46,7 +38,7 @@ async def enqueue_task(
     }
 
     job = queue.enqueue(
-        func, args=(args or []), job_timeout=task_timeout, meta=meta, **kwargs
+        func, args=(args or []), job_timeout=REDIS_TIMEOUT, meta=meta, **kwargs
     )
 
     logger.info(f"Enqueued job {job.id} to queue {queue_name}", "BLUE")

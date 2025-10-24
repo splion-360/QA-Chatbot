@@ -13,7 +13,7 @@ import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
-import CircularProgress from '@mui/material/CircularProgress';
+import InfinityLoader from './InfinityLoader';
 import PersonIcon from '@mui/icons-material/Person';
 import SaveIcon from '@mui/icons-material/Save';
 import { createClient } from '@utils/supabase/client';
@@ -90,6 +90,7 @@ export default function AccountManagementDialog({
   const handleSave = async () => {
     if (!userData) return;
 
+    const startTime = Date.now();
     setSaving(true);
     setError('');
     setSuccess(false);
@@ -123,7 +124,14 @@ export default function AccountManagementDialog({
       showToast('An unexpected error occurred', 'error');
       setError('An unexpected error occurred');
     } finally {
-      setSaving(false);
+      const elapsedTime = Date.now() - startTime;
+      const minDuration = 2000;
+      
+      if (elapsedTime < minDuration) {
+        setTimeout(() => setSaving(false), minDuration - elapsedTime);
+      } else {
+        setSaving(false);
+      }
     }
   };
 
@@ -268,7 +276,7 @@ export default function AccountManagementDialog({
           onClick={handleSave}
           variant="contained"
           disabled={!userData || loading || saving}
-          startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+          startIcon={saving ? <InfinityLoader size={20} /> : <SaveIcon />}
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </Button>

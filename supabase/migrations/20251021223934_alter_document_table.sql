@@ -16,7 +16,7 @@ CREATE TABLE vector_store (
     chunk_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID REFERENCES documents(document_id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    embedding VECTOR(1536) NOT NULL,
+    embedding VECTOR(768) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

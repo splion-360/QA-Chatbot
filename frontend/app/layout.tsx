@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { Toaster } from 'react-hot-toast';
+import ThemeInitializer from './components/ThemeInitializer';
 import "./globals.css";
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -16,6 +17,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/mascot.png",
   },
+  other: {
+    'theme-init': '/theme-init.js',
+  },
 };
 
 export default function RootLayout({
@@ -24,10 +28,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script src="/theme-init.js" />
+      </head>
       <body
         className={`${ibmPlexMono.variable} antialiased`}
+        suppressHydrationWarning
       >
+        <ThemeInitializer />
         <AppRouterCacheProvider>
           {children}
           <Toaster 

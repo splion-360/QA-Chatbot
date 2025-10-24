@@ -32,6 +32,9 @@ python-multipart==0.0.18
 # AI/ML for RAG implementation
 openai==1.54.4
 pypdf>=3.9.0
+transformers==4.44.0
+torch==2.4.0
+sentence-transformers==3.0.1
 
 # Database
 asyncpg==0.29.0
