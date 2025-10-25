@@ -170,11 +170,15 @@ TEMPERATURE = 0.1
 SUPPORTED_FILE_TYPES = ["application/pdf"]
 
 # Pagination Configuration
-DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 50
 
 # Vector Search Configuration
 MAX_SEARCH_LIMIT = 50
+
+# WebSocket Configuration
+WS_MAX_CONNECTIONS_PER_USER = 3
+WS_IDLE_TIMEOUT = 600
+WS_HEARTBEAT_INTERVAL = 30
 
 
 def get_async_openai_client() -> AsyncOpenAI:

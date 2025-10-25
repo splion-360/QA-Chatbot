@@ -18,7 +18,7 @@ export async function GET(
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/documents/${id}/preview?user_id=${user.id}`,
+      `${BACKEND_URL}/documents/${id}/preview?user_id=${user.id}`,
       {
         method: 'GET',
         headers: {
