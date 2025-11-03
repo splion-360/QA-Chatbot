@@ -163,16 +163,22 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_EMBEDDING_TOKENS = 8000
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 SUMMARIZATION_MODEL = "gpt-3.5-turbo"
+CHAT_MODEL = "meta-llama/llama-4-maverick:free"
 MAX_SUMMARY_TOKENS = 500
+MAX_STREAMING_TOKENS = 1000
+TEMPERATURE = 0.1
 SUPPORTED_FILE_TYPES = ["application/pdf"]
 
 # Pagination Configuration
-DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 50
 
 # Vector Search Configuration
-DEFAULT_SEARCH_LIMIT = 10
 MAX_SEARCH_LIMIT = 50
+
+# WebSocket Configuration
+WS_MAX_CONNECTIONS_PER_USER = 3
+WS_IDLE_TIMEOUT = 600
+WS_HEARTBEAT_INTERVAL = 30
 
 
 def get_async_openai_client() -> AsyncOpenAI:

@@ -39,13 +39,17 @@ async def list_documents(
     user_id: str = Query(...),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=50),
-    search: str = Query(None, description="Search query for document titles and content"),
+    search: str = Query(
+        None, description="Search query for document titles and content"
+    ),
     search_type: str = Query("title"),
 ):
     offset = (page - 1) * limit
-    
+
     if search and search.strip():
-        result = await search_documents(user_id, search.strip(), search_type, offset, limit)
+        result = await search_documents(
+            user_id, search.strip(), search_type, offset, limit
+        )
     else:
         result = await get_documents(user_id, offset, limit)
 

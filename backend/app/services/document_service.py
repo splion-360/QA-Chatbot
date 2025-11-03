@@ -11,8 +11,6 @@ from pypdf import PdfReader
 from app.config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
-    DEFAULT_PAGE_SIZE,
-    DEFAULT_SEARCH_LIMIT,
     MAX_FILE_SIZE_BYTES,
     MAX_PAGE_SIZE,
     MAX_SEARCH_LIMIT,
@@ -216,10 +214,9 @@ async def save_summary(user_id: str, content: str) -> str:
 
 
 async def get_documents(
-    user_id: str, offset: int = 0, limit: int = DEFAULT_PAGE_SIZE
+    user_id: str, offset: int = 0, limit: int = MAX_PAGE_SIZE
 ) -> dict[str, Any]:
     try:
-        limit = min(limit, MAX_PAGE_SIZE)
         supabase = await get_supabase_client()
 
         result = await (
@@ -305,11 +302,14 @@ async def delete_document(document_id: str, user_id: str) -> bool:
         raise DatabaseError("delete", "documents", e.message) from e
 
 
-async def search_documents(
-    user_id: str, query: str, limit: int = DEFAULT_SEARCH_LIMIT
+async def search_similar_documents(
+    user_id: str, query: str, limit: int = MAX_SEARCH_LIMIT
 ) -> list[dict[str, Any]]:
+    """
+    Query based document retrieval from the database
+    TODO: OpenAI tool construction
+    """
     try:
-        limit = min(limit, MAX_SEARCH_LIMIT)
         supabase = await get_supabase_client()
         query_embedding = await get_embedding(query)
 
@@ -399,16 +399,19 @@ async def process_file(
 
 
 async def search_documents(
-    user_id: str, 
-    search_query: str, 
-    search_type: str = "title", 
-    offset: int = 0, 
-    limit: int = DEFAULT_PAGE_SIZE
+    user_id: str,
+    search_query: str,
+    offset: int = 0,
+    limit: int = MAX_PAGE_SIZE,
 ) -> dict[str, Any]:
+    """
+    Simple key-word based search service for retrieving user documents
+    NOTE: This utility is only for improving UX and SHOULD NOT BE used as a tool for RAG
+
+    """
     try:
-        limit = min(limit, MAX_PAGE_SIZE)
         supabase = await get_supabase_client()
-        
+
         result = await (
             supabase.table("documents")
             .select("document_id, title, size, created_at")
@@ -418,7 +421,7 @@ async def search_documents(
             .range(offset, offset + limit - 1)
             .execute()
         )
-        
+
         count_result = await (
             supabase.table("documents")
             .select("document_id", count="exact")
@@ -426,15 +429,17 @@ async def search_documents(
             .ilike("title", f"%{search_query}%")
             .execute()
         )
-        
+
         documents = result.data if result.data else []
-        total = count_result.count if hasattr(count_result, 'count') else 0
-        
+        total = count_result.count if hasattr(count_result, "count") else 0
+
         return {
             "documents": documents,
             "total": total,
         }
-        
+
     except Exception as e:
-        logger.error(f"Search error for user {user_id}, query '{search_query}': {str(e)}")
+        logger.error(
+            f"Search error for user {user_id}, query '{search_query}': {str(e)}"
+        )
         raise DatabaseError(f"Search failed: {str(e)}") from e
