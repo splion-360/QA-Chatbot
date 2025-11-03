@@ -10,9 +10,10 @@ import { Message as MessageType } from './ChatContainer';
 interface MessageListProps {
   messages: MessageType[];
   isLoading: boolean;
+  currentAssistantMessage?: string;
 }
 
-export default function MessageList({ messages, isLoading }: MessageListProps) {
+export default function MessageList({ messages, isLoading, currentAssistantMessage }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -21,7 +22,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, currentAssistantMessage]);
 
   return (
     <Box
@@ -36,7 +37,18 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
         {messages.map((message) => (
           <Message key={message.id} message={message} />
         ))}
-        {isLoading && <TypingIndicator />}
+        {currentAssistantMessage && (
+          <Message 
+            key="streaming" 
+            message={{
+              id: 'streaming',
+              content: currentAssistantMessage,
+              role: 'assistant',
+              timestamp: new Date()
+            }} 
+          />
+        )}
+        {isLoading && !currentAssistantMessage && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </Stack>
     </Box>

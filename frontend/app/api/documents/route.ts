@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@utils/supabase/server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/documents/upload?user_id=${user.id}`,
+      `${BACKEND_URL}/documents/upload?user_id=${user.id}`,
       {
         method: 'POST',
         body: backendFormData,
