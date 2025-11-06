@@ -4,11 +4,13 @@ from app.config import (
     CHAT_MODEL,
     MAX_SEARCH_LIMIT,
     MAX_STREAMING_TOKENS,
+    SIMILARITY_SCORE,
     TEMPERATURE,
     get_async_openai_client,
     get_supabase_client,
     setup_logger,
 )
+from app.core.config import settings
 from app.services.document_service import search_similar_documents
 
 
@@ -21,23 +23,33 @@ class ChatService:
         self.supabase = get_supabase_client()
 
     async def get_relevant_context(
-        self, query: str, user_id: str, max_results: int = MAX_SEARCH_LIMIT
+        self,
+        query: str,
+        user_id: str,
+        max_results: int = MAX_SEARCH_LIMIT,
+        similarity: float = SIMILARITY_SCORE,
     ) -> str | None:
         try:
-            result = await search_similar_documents(user_id, query, max_results)
+            result = await search_similar_documents(
+                user_id, query, max_results, similarity
+            )
 
-            if not result["documents"]:
+            if not result:
                 logger.info("No relevant documents found")
                 return
-            chunk_ids, document_ids = result["chunk_id"], result["document_id"]
+
+            context_parts = []
+            chunk_ids, document_ids = set(), set()
+
+            for i, data in enumerate(result):
+                content = data.get("content", "")
+                chunk_ids.add(data.get("chunk_id", ""))
+                document_ids.add(data.get("document_id", ""))
+                context_parts.append(f"Doc {i+1}: {content}")
+
             logger.info(
                 f"Found {len(chunk_ids)} relevant chunks from {len(set(document_ids))} documents"
             )
-
-            context_parts = []
-            for i, content in enumerate(result["content"]):
-                context_parts.append(f"Doc {i+1}: {content}")
-
             return "\n\n".join(context_parts)
 
         except Exception as e:
@@ -95,12 +107,14 @@ class ChatService:
             )
 
             try:
+                headers = {"X-Title": settings.name}
                 stream = await self.openai_client.chat.completions.create(
                     model=CHAT_MODEL,
                     messages=messages,
                     stream=True,
                     max_tokens=MAX_STREAMING_TOKENS,
                     temperature=TEMPERATURE,
+                    extra_headers=headers,
                 )
 
                 async for chunk in stream:

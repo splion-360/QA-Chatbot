@@ -173,21 +173,24 @@ SUPPORTED_FILE_TYPES = ["application/pdf"]
 MAX_PAGE_SIZE = 50
 
 # Vector Search Configuration
-MAX_SEARCH_LIMIT = 50
+MAX_SEARCH_LIMIT = 5
+SIMILARITY_SCORE = 0.7
 
 # WebSocket Configuration
-WS_MAX_CONNECTIONS_PER_USER = 3
+WS_MAX_CONNECTIONS_PER_USER = 1
 WS_IDLE_TIMEOUT = 600
 WS_HEARTBEAT_INTERVAL = 30
 
 
 def get_async_openai_client() -> AsyncOpenAI:
     global _async_openai_client
+
     if not _async_openai_client:
         if not OPENROUTER_API_KEY:
             raise ValueError("OpenAI API key not configured")
         _async_openai_client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY
+            base_url="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
         )
     return _async_openai_client
 

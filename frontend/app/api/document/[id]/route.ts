@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@utils/supabase/server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080'
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,11 +14,11 @@ export async function GET(
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
-  const { id } = params
+  const { id } = await params
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/documents/${id}/preview?user_id=${user.id}`,
+      `${BACKEND_URL}/api/v1/documents/${id}/preview?user_id=${user.id}`,
       {
         method: 'GET',
         headers: {
@@ -44,7 +44,7 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -53,7 +53,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
-  const { id } = params
+  const { id } = await params
 
   try {
     const response = await fetch(

@@ -67,20 +67,10 @@ async def heartbeat_handler(websocket: WebSocket):
 
 @router.websocket("/ws")
 async def chat(websocket: WebSocket, user_id: str = Query(...)):
-    client_info = f"{websocket.client.host}:{websocket.client.port}"
-    headers = dict(websocket.headers)
-
-    logger.info("=== WebSocket Connection Attempt ===")
-    logger.info(f"Client: {client_info}")
-    logger.info(f"User ID: '{user_id}' (type: {type(user_id)})")
-    logger.info(f"Headers: {headers}")
-    logger.info(
-        f"Current connections for user: {len(active_connections.get(user_id, set()))}"
-    )
 
     try:
-        if not user_id or user_id == "null" or user_id == "undefined":
-            logger.error(f"REJECTING: Invalid user_id received: '{user_id}'")
+        logger.info(f"Opening Websocket for {user_id}")
+        if not user_id:
             await websocket.close(code=4000, reason="Invalid user ID")
             return
 
@@ -91,10 +81,14 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
             await websocket.close(code=1008, reason="Connection limit exceeded")
             return
 
-        logger.info(f"ACCEPTING: WebSocket connection for user {user_id}")
+        logger.info(
+            f"ACCEPTING: WebSocket connection for user {user_id}",
+            "BRIGHT_GREEN",
+        )
         await websocket.accept()
         logger.info(
-            f"SUCCESS: WebSocket connection established for user {user_id}"
+            f"SUCCESS: WebSocket connection established for user {user_id}",
+            "BRIGHT_GREEN",
         )
     except Exception as e:
         logger.error(
@@ -114,7 +108,7 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
-            logger.info(f"Received message from {user_id}: {message}")
+            logger.debug(f"Received message: {message}", "BRIGHT_GREEN")
 
             connection_last_activity[websocket] = time.time()
 

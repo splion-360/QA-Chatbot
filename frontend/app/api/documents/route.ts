@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/v1/documents/?${backendParams.toString()}`,
+      `${BACKEND_URL}/api/v1/documents?${backendParams.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = await fetch(
-      `${BACKEND_URL}/documents/upload?user_id=${user.id}`,
+      `${BACKEND_URL}/api/v1/documents/upload?user_id=${user.id}`,
       {
         method: 'POST',
         body: backendFormData,
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Failed to upload document:', error)
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Failed to upload document' },
       { status: 500 }

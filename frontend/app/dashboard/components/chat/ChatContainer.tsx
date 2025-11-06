@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
@@ -8,6 +8,11 @@ import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import WelcomeScreen from './WelcomeScreen';
 import { createClient } from '@utils/supabase/client';
+import React from "react";
+import { socketManager } from './Socket';
+
+
+
 
 export interface Message {
   id: string;
@@ -16,16 +21,24 @@ export interface Message {
   timestamp: Date;
 }
 
+
+
+
 export default function ChatContainer() {
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [currentAssistantMessage, setCurrentAssistantMessage] = useState<string>('');
+  const [message, setMessage] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  // const processingComplete = useRef(false);
+  const processedMessageHashes = useRef<Set<string>>(new Set());
 
   const supabase = createClient();
+
 
   useEffect(() => {
     const getUser = async () => {
@@ -39,32 +52,13 @@ export default function ChatContainer() {
     getUser();
   }, [supabase]);
 
-  const connectWebSocket = useCallback(() => {
-    if (!userId || wsRef.current?.readyState === WebSocket.OPEN) {
-      return;
-    }
 
-    // Determine WebSocket URL based on environment
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NODE_ENV === 'production' 
-      ? window.location.host 
-      : 'localhost:8000';
-    const wsUrl = `${protocol}//${host}/api/v1/chat/ws?user_id=${userId}`;
-    
-    console.log('Connecting to WebSocket:', wsUrl);
-    console.log('Current location:', window.location.href);
+  useEffect(() => {
+    if (!userId) return;
 
-    wsRef.current = new WebSocket(wsUrl);
+    console.log('Setting up socket manager for userId:', userId);
 
-    wsRef.current.onopen = () => {
-      console.log('WebSocket connected');
-      setWsConnected(true);
-    };
-
-    wsRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log('WebSocket message received:', data);
-
+    const handleMessage = (data: any) => {
       switch (data.type) {
         case 'message_received':
           console.log('Message received by server');
@@ -75,29 +69,52 @@ export default function ChatContainer() {
           break;
 
         case 'complete':
-          const assistantMessage: Message = {
-            id: Date.now().toString(),
-            content: currentAssistantMessage + data.content,
-            role: 'assistant',
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-          setCurrentAssistantMessage('');
-          setIsLoading(false);
+          setCurrentAssistantMessage(current => {
+            if (current.trim()) {
+              console.log('Creating assistant message with content:', current);
+              const assistantMessage: Message = {
+                id: `assistant-${Date.now()}-${Math.random().toString(36)}`,
+                content: current,
+                role: 'assistant',
+                timestamp: new Date(),
+              };
+              console.log('Assistant message created with ID:', assistantMessage.id);
+
+              setMessages(prev => {
+                const messageHash = btoa(assistantMessage.content).slice(0, 16);
+
+                if (processedMessageHashes.current.has(messageHash)) {
+                  console.log('Duplicate message hash detected, skipping:', messageHash);
+                  return prev;
+                }
+
+
+                processedMessageHashes.current.add(messageHash);
+                return [...prev, assistantMessage];
+              });
+            }
+            setIsLoading(false);
+            console.log('Resetting processingComplete flag to false');
+            return '';
+          });
           break;
 
         case 'error':
           console.error('WebSocket error:', data.message);
+          setError(data.message);
           setIsLoading(false);
           break;
 
         case 'ping':
           console.log('Ping received, sending pong');
-          wsRef.current?.send(JSON.stringify({ type: 'pong' }));
+          socketManager.send({ type: 'pong' });
           break;
 
         case 'idle_timeout':
           console.log('Connection timed out due to inactivity');
+          setError('Connection timed out due to inactivity');
+          setWsConnected(false);
+          setIsLoading(false);
           break;
 
         default:
@@ -105,63 +122,56 @@ export default function ChatContainer() {
       }
     };
 
-    wsRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      console.error('WebSocket readyState:', wsRef.current?.readyState);
-      setWsConnected(false);
-      setIsLoading(false);
+    const handleOpen = () => {
+      console.log('Socket manager connected');
+      setWsConnected(true);
     };
 
-    wsRef.current.onclose = (event) => {
-      console.log('WebSocket closed:', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-        url: wsUrl
-      });
+    const handleClose = () => {
+      console.log('Socket manager disconnected');
       setWsConnected(false);
       setCurrentAssistantMessage('');
       setIsLoading(false);
-      
-      // Retry connection after 3 seconds if it wasn't a clean close
-      if (!event.wasClean && event.code !== 1000) {
-        console.log('Attempting to reconnect in 3 seconds...');
-        setTimeout(() => {
-          if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-            connectWebSocket();
-          }
-        }, 3000);
-      }
     };
-  }, [userId, currentAssistantMessage]);
 
-  useEffect(() => {
-    if (userId) {
-      connectWebSocket();
-    }
+    const handleError = (error: any) => {
+      console.error('Socket manager error:', error);
+      setWsConnected(false);
+      setIsLoading(false);
+      setError(typeof error === 'string' ? error : 'Connection error');
+    };
+
+    const unsubscribeMessage = socketManager.onMessage(handleMessage);
+    const unsubscribeOpen = socketManager.onOpen(handleOpen);
+    const unsubscribeClose = socketManager.onClose(handleClose);
+    const unsubscribeError = socketManager.onError(handleError);
+
+    socketManager.connect(userId);
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      unsubscribeMessage();
+      unsubscribeOpen();
+      unsubscribeClose();
+      unsubscribeError();
     };
-  }, [userId, connectWebSocket]);
+  }, [userId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      chatInputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      console.log('Component unmounting, cleaning up socket manager');
+      socketManager.disconnect();
+    };
   }, []);
 
-  const handleSendMessage = async (content: string) => {
-    if (!userId || !wsConnected || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+  const sendMessage = (content: string) => {
+    if (!userId || !socketManager.isConnected()) {
       console.error('WebSocket not connected');
+      setError('Not connected to server');
       return;
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}-${Math.random().toString(36)}`,
       content,
       role: 'user',
       timestamp: new Date(),
@@ -170,13 +180,18 @@ export default function ChatContainer() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setCurrentAssistantMessage('');
+    setError(null);
 
     const messageData = { message: content };
-    wsRef.current.send(JSON.stringify(messageData));
+    socketManager.send(messageData);
+  };
 
-    setTimeout(() => {
-      chatInputRef.current?.focus();
-    }, 100);
+
+
+
+
+  const handleSendMessage = (content: string) => {
+    sendMessage(content);
   };
 
   return (

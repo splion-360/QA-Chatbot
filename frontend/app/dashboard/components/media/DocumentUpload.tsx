@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import InfinityLoader from '../InfinityLoader';
 import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useToast } from '../ToastProvider';
@@ -23,6 +24,8 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [dragOver, setDragOver] = React.useState(false);
+  const [localToastOpen, setLocalToastOpen] = React.useState(false);
+  const [localToastMessage, setLocalToastMessage] = React.useState('');
   const { showToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -128,13 +131,13 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-      setError(errorMessage);
-      showToast(`Upload failed: ${errorMessage}`, 'error');
+      setLocalToastMessage(`Upload failed: ${errorMessage}`);
+      setLocalToastOpen(true);
       // Don't reset form on error so user can retry
     } finally {
       const elapsedTime = Date.now() - startTime;
       const minDuration = 2000;
-      
+
       if (elapsedTime < minDuration) {
         setTimeout(() => setUploading(false), minDuration - elapsedTime);
       } else {
@@ -149,6 +152,10 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleCloseLocalToast = () => {
+    setLocalToastOpen(false);
   };
 
   return (
@@ -255,7 +262,7 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
         )}
 
         {uploading && (
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <Typography variant="body2" gutterBottom>
               Uploading document...
             </Typography>
@@ -283,6 +290,18 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
 
         {/* Debug info */}
       </Stack>
+
+      <Snackbar
+        open={localToastOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseLocalToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ position: 'relative' }}
+      >
+        <Alert onClose={handleCloseLocalToast} severity="error" sx={{ width: '100%' }}>
+          {localToastMessage}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 }

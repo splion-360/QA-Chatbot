@@ -25,7 +25,15 @@ async def upload_document(
     user_id: str = Query(...),
     title: str = Form(None),
 ):
-    job_id = await enqueue_task(process_file, [file, user_id, title])
+    file_content = await file.read()
+    file_data = {
+        "content": file_content,
+        "filename": file.filename,
+        "size": file.size,
+        "content_type": file.content_type,
+    }
+
+    job_id = await enqueue_task(process_file, [file_data, user_id, title])
 
     return UploadResponse(
         message="Document upload queued for processing",

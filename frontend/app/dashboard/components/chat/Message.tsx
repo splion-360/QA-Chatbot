@@ -9,6 +9,7 @@ import IconButton from '@mui/material/IconButton';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ReactMarkdown from 'react-markdown';
 import { Message as MessageType } from './ChatContainer';
 
 interface MessageProps {
@@ -68,9 +69,48 @@ export default function Message({ message }: MessageProps) {
             },
           }}
         >
-          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-            {message.content}
-          </Typography>
+          <Box
+            sx={{
+              '& p': { margin: 0, marginBottom: 1 },
+              '& p:last-child': { marginBottom: 0 },
+              '& ul, & ol': { paddingLeft: 3, margin: 0 },
+              '& li': { marginBottom: 0.5 },
+              '& code': {
+                backgroundColor: 'action.hover',
+                padding: '2px 4px',
+                borderRadius: 1,
+                fontSize: '0.875em',
+                fontFamily: 'monospace',
+              },
+              '& pre': {
+                backgroundColor: 'action.hover',
+                padding: 2,
+                borderRadius: 1,
+                overflow: 'auto',
+                margin: '8px 0',
+              },
+              '& pre code': {
+                backgroundColor: 'transparent',
+                padding: 0,
+              },
+              '& blockquote': {
+                borderLeft: '4px solid',
+                borderColor: 'divider',
+                paddingLeft: 2,
+                margin: '8px 0',
+                fontStyle: 'italic',
+              },
+              '& h1, & h2, & h3, & h4, & h5, & h6': {
+                margin: '16px 0 8px 0',
+                fontWeight: 'bold',
+              },
+              '& h1:first-child, & h2:first-child, & h3:first-child': {
+                marginTop: 0,
+              },
+            }}
+          >
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </Box>
 
           <IconButton
             className="copy-button"
