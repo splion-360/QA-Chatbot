@@ -1,6 +1,10 @@
 # Question & Answering ChatBot 
 RAG agent for Q&A and summary generation
 
+## Demo
+
+![Demo](assets/demo.gif)
+
 ## System Design
 
 ![System Design](assets/system-design.svg)
@@ -55,13 +59,21 @@ source venv/bin/activate  # On Linux/macOS
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file:
-```env
-DEBUG=true
-APP_NAME="QA Chatbot API"
-REDIS_HOST=localhost
-REDIS_PORT=6379
-ALLOWED_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000"]
+4. Setup environment variables:
+```bash
+# Copy the example environment file
+cp .env.local .env
+
+# Edit .env and add your API keys:
+# ENVIRONMENT="development"
+# OPENROUTER_META_API_KEY=your_llama_api_key
+# OPENROUTER_GPT_OSS_KEY=your_gpt_oss_api_key  
+# OPENROUTER_QWEN_KEY=your_qwen_api_key
+# 
+# Add Supabase credentials:
+# SUPABASE_URL_DEV=your_supabase_url
+# SUPABASE_ANON_KEY_DEV=your_supabase_anon_key
+# SUPABASE_SERVICE_ROLE_KEY_DEV=your_supabase_service_role_key
 ```
 
 5. Start Redis server:
@@ -73,7 +85,7 @@ sudo systemctl start redis-server
 6. Run the application:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-python redis/worker.py  # In separate terminal
+python3 launch_workers.py  
 ```
 
 The API will be available at `http://localhost:8000/docs`

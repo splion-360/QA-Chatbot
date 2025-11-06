@@ -54,45 +54,9 @@ export default function WelcomeScreen({ onSendMessage }: WelcomeScreenProps) {
             Welcome to QA Chatbot
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            I'm here to help answer your questions and assist you with anything you need.
             Start a conversation by typing a message or selecting one of the suggestions below.
           </Typography>
         </Box>
-
-        {/* Suggestion Cards */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
-            border: '1px solid',
-            borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-            borderRadius: 2,
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            Try asking:
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {suggestionQuestions.map((suggestion, index) => (
-              <Chip
-                key={index}
-                label={suggestion}
-                variant="outlined"
-                clickable
-                onClick={() => handleSuggestionClick(suggestion)}
-                sx={{
-                  mb: 1,
-                  '&:hover': {
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    borderColor: 'primary.main',
-                  },
-                }}
-              />
-            ))}
-          </Stack>
-        </Paper>
 
         {/* Features */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -111,28 +75,10 @@ export default function WelcomeScreen({ onSendMessage }: WelcomeScreenProps) {
               💬 Natural Conversation
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Chat naturally as you would with a human assistant
+              Chat naturally as you would with a human assistant about your uploaded documents
             </Typography>
           </Paper>
 
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              flex: 1,
-              textAlign: 'center',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Typography variant="subtitle2" gutterBottom>
-              🎯 Smart Responses
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Get accurate answers based on your uploaded documents
-            </Typography>
-          </Paper>
         </Stack>
       </Stack>
     </Box>

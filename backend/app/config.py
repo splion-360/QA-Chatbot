@@ -9,6 +9,7 @@ from supabase import acreate_client
 from transformers import AutoModel, AutoTokenizer
 
 import redis
+from app.core.config import settings
 
 
 load_dotenv()
@@ -27,8 +28,9 @@ else:
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-HUGGING_FACE_API_KEY = os.getenv("HUGGING_FACE_API_KEY")
+OPENROUTER_META_API_KEY = os.getenv("OPENROUTER_META_API_KEY")
+OPENROUTER_GPT_OSS_KEY = os.getenv("OPENROUTER_GPT_OSS_KEY")
+OPENROUTER_QWEN_KEY = os.getenv("OPENROUTER_QWEN_KEY")
 
 
 _async_openai_client: AsyncOpenAI | None = None
@@ -163,9 +165,13 @@ MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_EMBEDDING_TOKENS = 8000
 EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
 SUMMARIZATION_MODEL = "gpt-3.5-turbo"
-CHAT_MODEL = "meta-llama/llama-4-maverick:free"
+FALLBACK_MODELS = [
+    ("meta-llama/llama-4-maverick:free", "OPENROUTER_META_API_KEY"),
+    ("gpt-4o-mini-2024-07-18", "OPENROUTER_GPT_OSS_KEY"),
+    ("qwen/qwen-2.5-72b-instruct", "OPENROUTER_QWEN_KEY"),
+]
 MAX_SUMMARY_TOKENS = 500
-MAX_STREAMING_TOKENS = 1000
+MAX_STREAMING_TOKENS = 10000
 TEMPERATURE = 0.1
 SUPPORTED_FILE_TYPES = ["application/pdf"]
 
@@ -173,23 +179,37 @@ SUPPORTED_FILE_TYPES = ["application/pdf"]
 MAX_PAGE_SIZE = 50
 
 # Vector Search Configuration
-MAX_SEARCH_LIMIT = 50
+MAX_SEARCH_LIMIT = 5
+SIMILARITY_SCORE = 0.7
 
 # WebSocket Configuration
-WS_MAX_CONNECTIONS_PER_USER = 3
+WS_MAX_CONNECTIONS_PER_USER = 1
 WS_IDLE_TIMEOUT = 600
 WS_HEARTBEAT_INTERVAL = 30
 
 
-def get_async_openai_client() -> AsyncOpenAI:
+def get_async_openai_client(
+    api_key: str = OPENROUTER_META_API_KEY,
+) -> AsyncOpenAI:
     global _async_openai_client
-    if not _async_openai_client:
-        if not OPENROUTER_API_KEY:
-            raise ValueError("OpenAI API key not configured")
-        _async_openai_client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_API_KEY
-        )
+
+    if not api_key:
+        logger.error("Invalid API Key")
+        return
+
+    _async_openai_client = AsyncOpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+        default_headers={
+            "HTTP-Referer": "localhost:8000",
+            "X-Title": settings.name,
+        },
+    )
     return _async_openai_client
+
+
+def get_fallback_api_key(key_name: str) -> str | None:
+    return globals().get(key_name)
 
 
 async def get_supabase_client() -> SU_Client:

@@ -210,6 +210,6 @@ node_modules
 # IDE 
 **/.claude/
 **/.vscode/
-
-backend/tests/test_documents/*.pdf
-backend/llm_benchmark_results.json
+**/git_report/
+**/examples/
+**/*.mp4
