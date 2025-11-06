@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: "QA Chatbot",
   description: "AI-powered question and answer chatbot",
   icons: {
-    icon: "/mascot.png",
+    icon: "/mascot.svg",
   },
   other: {
     'theme-init': '/theme-init.js',
@@ -39,7 +39,7 @@ export default function RootLayout({
         <ThemeInitializer />
         <AppRouterCacheProvider>
           {children}
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,

@@ -210,3 +210,6 @@ node_modules
 # IDE 
 **/.claude/
 **/.vscode/
+**/git_report/
+**/examples/
+**/*.mp4

@@ -15,6 +15,7 @@ from app.config import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_LIMIT,
     MAX_SUMMARY_TOKENS,
+    SIMILARITY_SCORE,
     SUMMARIZATION_MODEL,
     SUPPORTED_FILE_TYPES,
     get_async_openai_client,
@@ -140,14 +141,16 @@ async def check_document_completion(document_id: str, total_chunks: int):
         raise DocumentProcessingError(document_id, "unknown", str(e)) from e
 
 
-async def summarize_text(text: str) -> str:
+async def summarize_text(text: str, instructions: str = None) -> str:
     client = get_async_openai_client()
+    if not instructions:
+        instructions = f"Summarize the following content in less than {MAX_SUMMARY_TOKENS} words"
     response = await client.chat.completions.create(
         model=SUMMARIZATION_MODEL,
         messages=[
             {
                 "role": "system",
-                "content": f"Summarize the following content in less than {MAX_SUMMARY_TOKENS} words",
+                "content": instructions,
             },
             {"role": "user", "content": text},
         ],
@@ -269,8 +272,8 @@ async def get_document(document_id: str, user_id: str) -> dict[str, Any] | None:
             .execute()
         )
 
-        preview_content = document["content"][:500]
-        if len(document["content"]) > 500:
+        preview_content = document["content"][:1000]
+        if len(document["content"]) > 1000:
             preview_content += "..."
 
         return {
@@ -303,7 +306,10 @@ async def delete_document(document_id: str, user_id: str) -> bool:
 
 
 async def search_similar_documents(
-    user_id: str, query: str, limit: int = MAX_SEARCH_LIMIT
+    user_id: str,
+    query: str,
+    limit: int = MAX_SEARCH_LIMIT,
+    similarity_threshold: float = SIMILARITY_SCORE,
 ) -> list[dict[str, Any]]:
     """
     Query based document retrieval from the database
@@ -319,6 +325,7 @@ async def search_similar_documents(
                 "query_embedding": query_embedding,
                 "user_id": user_id,
                 "match_count": limit,
+                "similarity_threshold": similarity_threshold,
             },
         ).execute()
 
@@ -343,59 +350,68 @@ def is_valid(file: UploadFile) -> bool | None:
     return True
 
 
-async def process_file(
-    file: UploadFile, user_id: str, title: str = None
-) -> str:
+async def process_file(data: dict, user_id: str, title: str = None) -> str:
+    filename = data["filename"]
+    file_size = data["size"]
+    content = data["content"]
+    content_type = data["content_type"]
 
-    if is_valid(file):
+    if not content_type == "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are supported",
+        )
 
-        try:
-            content = await file.read()
-            text = extract_text(content)
-            chunks = chunk_text(text)
-            doc_title = title if title else file.filename.replace(".pdf", "")
+    if file_size > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds maximum limit of {MAX_FILE_SIZE_BYTES // (1024*1024)} MB",
+        )
 
-            supabase = await get_supabase_client()
-            response = await (
-                supabase.table("documents")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "title": doc_title,
-                        "size": file.size,
-                        "content": text,
-                    }
-                )
-                .execute()
+    try:
+        text = extract_text(content)
+        chunks = chunk_text(text)
+        doc_title = title if title else filename.replace(".pdf", "")
+
+        supabase = await get_supabase_client()
+        response = await (
+            supabase.table("documents")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "title": doc_title,
+                    "size": file_size,
+                    "content": text,
+                }
             )
+            .execute()
+        )
 
-            document_id = response.data[0]["document_id"]
+        document_id = response.data[0]["document_id"]
 
-            logger.info(
-                f"Found {len(chunks)} chunks for {file.filename}", "WHITE"
-            )
+        logger.info(f"Found {len(chunks)} chunks for {filename}", "WHITE")
 
-            for i, chunk in enumerate(chunks):
-                await enqueue_task(
-                    process_chunk,
-                    args=[chunk, document_id, i],
-                    queue_name="qa-chatbot",
-                )
-
+        for i, chunk in enumerate(chunks):
             await enqueue_task(
-                check_document_completion,
-                args=[document_id, len(chunks)],
+                process_chunk,
+                args=[chunk, document_id, i],
                 queue_name="qa-chatbot",
             )
 
-        except DatabaseError:
-            raise
+        await enqueue_task(
+            check_document_completion,
+            args=[document_id, len(chunks)],
+            queue_name="qa-chatbot",
+        )
 
-        except Exception as e:
-            raise DocumentProcessingError(document_id, user_id, str(e)) from e
+    except DatabaseError:
+        raise
 
-        logger.info(f"Submitted document {document_id} for parallel processing")
-        return document_id
+    except Exception as e:
+        raise DocumentProcessingError(document_id, user_id, str(e)) from e
+
+    logger.info(f"Submitted document {document_id} for parallel processing")
+    return document_id
 
 
 async def search_documents(

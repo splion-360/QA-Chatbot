@@ -23,6 +23,9 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
   const [uploading, setUploading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [dragOver, setDragOver] = React.useState(false);
+  const [localToastOpen, setLocalToastOpen] = React.useState(false);
+  const [localToastMessage, setLocalToastMessage] = React.useState('');
+  const [localToastSeverity, setLocalToastSeverity] = React.useState<'success' | 'error'>('error');
   const { showToast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -93,6 +96,10 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
     const startTime = Date.now();
     setUploading(true);
     setError('');
+    setLocalToastOpen(false); // Hide any previous toast messages
+    
+    let toastMessage = '';
+    let toastSeverity: 'success' | 'error' = 'error';
 
     try {
       const formData = new FormData();
@@ -112,7 +119,8 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
         throw new Error(errorData.message || 'Upload failed');
       }
 
-      showToast('Document uploaded successfully and will be available soon!', 'success');
+      toastMessage = 'Document uploaded successfully and will be available soon!';
+      toastSeverity = 'success';
 
       // Reset form only on successful upload
       setTitle('');
@@ -128,17 +136,29 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-      setError(errorMessage);
-      showToast(`Upload failed: ${errorMessage}`, 'error');
+      toastMessage = `Upload failed: ${errorMessage}`;
+      toastSeverity = 'error';
       // Don't reset form on error so user can retry
     } finally {
       const elapsedTime = Date.now() - startTime;
       const minDuration = 2000;
-      
+
       if (elapsedTime < minDuration) {
-        setTimeout(() => setUploading(false), minDuration - elapsedTime);
+        setTimeout(() => {
+          setUploading(false);
+          if (toastMessage) {
+            setLocalToastMessage(toastMessage);
+            setLocalToastSeverity(toastSeverity);
+            setLocalToastOpen(true);
+          }
+        }, minDuration - elapsedTime);
       } else {
         setUploading(false);
+        if (toastMessage) {
+          setLocalToastMessage(toastMessage);
+          setLocalToastSeverity(toastSeverity);
+          setLocalToastOpen(true);
+        }
       }
     }
   };
@@ -150,6 +170,17 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       fileInputRef.current.value = '';
     }
   };
+
+  // Auto-hide toast after 3 seconds
+  React.useEffect(() => {
+    if (localToastOpen) {
+      const timer = setTimeout(() => {
+        setLocalToastOpen(false);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [localToastOpen]);
 
   return (
     <Paper sx={{ p: 4, borderRadius: 2, elevation: 1 }}>
@@ -254,8 +285,21 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
           </Alert>
         )}
 
+        {localToastOpen && (
+          <Alert 
+            severity={localToastSeverity}
+            sx={{ 
+              display: 'flex',
+              justifyContent: 'center',
+              textAlign: 'center'
+            }}
+          >
+            {localToastMessage}
+          </Alert>
+        )}
+
         {uploading && (
-          <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <Typography variant="body2" gutterBottom>
               Uploading document...
             </Typography>

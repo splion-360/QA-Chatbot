@@ -25,7 +25,15 @@ async def upload_document(
     user_id: str = Query(...),
     title: str = Form(None),
 ):
-    job_id = await enqueue_task(process_file, [file, user_id, title])
+    file_content = await file.read()
+    file_data = {
+        "content": file_content,
+        "filename": file.filename,
+        "size": file.size,
+        "content_type": file.content_type,
+    }
+
+    job_id = await enqueue_task(process_file, [file_data, user_id, title])
 
     return UploadResponse(
         message="Document upload queued for processing",
@@ -81,8 +89,8 @@ async def preview_document(document_id: str, user_id: str = Query(...)):
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    preview_content = document["content"][:500]
-    if len(document["content"]) > 500:
+    preview_content = document["content"][:1000]
+    if len(document["content"]) > 1000:
         preview_content += "..."
 
     return {

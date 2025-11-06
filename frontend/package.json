@@ -23,13 +23,16 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.74.0",
+    "@types/socket.io-client": "^1.4.36",
     "dayjs": "^1.11.18",
     "next": "15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hot-toast": "^2.6.0",
+    "react-markdown": "^9.0.1",
     "react-router-dom": "^7.9.3",
-    "react-spring": "^10.0.3"
+    "react-spring": "^10.0.3",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

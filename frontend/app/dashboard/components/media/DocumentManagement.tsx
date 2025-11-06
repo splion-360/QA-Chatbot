@@ -96,12 +96,12 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
         page: currentPage.toString(),
         limit: '10'
       });
-      
+
       if (searchQuery.trim()) {
         searchParams.append('search', searchQuery.trim());
         searchParams.append('search_type', 'title');
       }
-      
+
       const response = await fetch(`/api/documents?${searchParams.toString()}`);
 
       if (!response.ok) {
@@ -145,12 +145,12 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
     if (documentsCache[cacheKey]) {
       documentsCache[cacheKey].lastFetched = null;
     }
-    
+
     await fetchDocuments();
-    
+
     const elapsedTime = Date.now() - startTime;
     const minDuration = 2000;
-    
+
     if (elapsedTime < minDuration) {
       await new Promise(resolve => setTimeout(resolve, minDuration - elapsedTime));
     }
@@ -211,7 +211,7 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
     } finally {
       const elapsedTime = Date.now() - startTime;
       const minDuration = 2000;
-      
+
       if (elapsedTime < minDuration) {
         setTimeout(() => setDeleting(false), minDuration - elapsedTime);
       } else {
@@ -289,7 +289,7 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
             </Typography>
 
             <Typography variant="body2" color="text.secondary">
-              {isSearchActive 
+              {isSearchActive
                 ? `${totalDocuments} result${totalDocuments !== 1 ? 's' : ''} for "${searchQuery}"${totalPages > 1 ? ` • Page ${currentPage} of ${totalPages}` : ''}`
                 : `Page ${currentPage} of ${totalPages}`
               }
@@ -316,12 +316,21 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
             alignItems: 'center',
             gap: 2
           }}>
-            <PictureAsPdfIcon sx={{ fontSize: 64, color: 'text.secondary' }} />
+            <Box sx={{ 
+              bgcolor: 'error.main', 
+              borderRadius: 2, 
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <PictureAsPdfIcon sx={{ fontSize: 64, color: 'white' }} />
+            </Box>
             <Typography variant="h6" color="text.secondary">
               {isSearchActive ? 'No documents found' : 'No documents uploaded yet'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {isSearchActive 
+              {isSearchActive
                 ? `No documents match your search for "${searchQuery}"`
                 : 'Upload your first PDF document to get started'
               }
@@ -343,7 +352,16 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
                   <TableRow key={document.document_id} hover>
                     <TableCell sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PictureAsPdfIcon color="error" fontSize="small" />
+                        <Box sx={{ 
+                          bgcolor: 'error.main', 
+                          borderRadius: 0.5, 
+                          p: 0.25,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <PictureAsPdfIcon sx={{ color: 'white', fontSize: 16 }} />
+                        </Box>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {document.title}
                         </Typography>

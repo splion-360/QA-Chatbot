@@ -28,11 +28,11 @@ interface DocumentContent {
   chunks: number;
 }
 
-export default function DocumentPreview({ 
-  open, 
-  onClose, 
-  documentId, 
-  documentTitle 
+export default function DocumentPreview({
+  open,
+  onClose,
+  documentId,
+  documentTitle
 }: DocumentPreviewProps) {
   const [content, setContent] = React.useState<DocumentContent | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -55,7 +55,7 @@ export default function DocumentPreview({
 
     try {
       const response = await fetch(`/api/document/${documentId}`);
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Please sign in to view document content');
@@ -73,7 +73,7 @@ export default function DocumentPreview({
     } finally {
       const elapsedTime = Date.now() - startTime;
       const minDuration = 2000;
-      
+
       if (elapsedTime < minDuration) {
         setTimeout(() => setLoading(false), minDuration - elapsedTime);
       } else {
@@ -103,18 +103,24 @@ export default function DocumentPreview({
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: { borderRadius: 2, height: '80vh' }
-      }}
+      maxWidth={false}
+
     >
-      <DialogTitle sx={{ pb: 1 }}>
+      <DialogTitle sx={{ p: 2, pb: 1, bgcolor: 'background.paper' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PictureAsPdfIcon color="error" />
+          <Box sx={{
+            bgcolor: 'error.main',
+            borderRadius: 1,
+            p: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <PictureAsPdfIcon sx={{ color: 'white', fontSize: 20 }} />
+          </Box>
           <Box>
             <Typography variant="h6" component="div">
               {documentTitle || 'Document Preview'}
@@ -127,16 +133,16 @@ export default function DocumentPreview({
           </Box>
         </Box>
       </DialogTitle>
-      
-      <DialogContent sx={{ pb: 1 }}>
+
+      <DialogContent sx={{ p: 0, bgcolor: 'transparent' }}>
         {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
+          <Box sx={{
+            display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center', 
+            alignItems: 'center',
             justifyContent: 'center',
             py: 4,
-            gap: 2
+            gap: 2,
           }}>
             <InfinityLoader />
             <Typography color="text.secondary">
@@ -148,45 +154,31 @@ export default function DocumentPreview({
             {error}
           </Alert>
         ) : content ? (
-          <Box>
-            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-              Content Preview (First 500 characters)
-            </Typography>
-            <Box
-              sx={{
-                p: 2,
-                bgcolor: 'background.default',
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'divider',
-                maxHeight: '400px',
-                overflow: 'auto',
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {content.preview}
-              {content.preview.length >= 500 && (
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    display: 'block', 
-                    mt: 2, 
-                    fontStyle: 'italic',
-                    color: 'text.secondary'
-                  }}
-                >
-                  ... (content truncated to 500 characters)
-                </Typography>
-              )}
-            </Box>
+          <Box
+            sx={{
+              p: 3,
+              bgcolor: 'background.paper',
+              borderRadius: 0.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              height: '500px',
+              width: '800px',
+              overflow: 'hidden',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              fontSize: '0.96rem',
+              lineHeight: 1.4,
+              whiteSpace: 'pre-wrap',
+              color: 'text.primary',
+              textAlign: 'left',
+            }}
+          >
+            {content.preview}
+
           </Box>
         ) : null}
       </DialogContent>
-      
-      <DialogActions sx={{ p: 3, pt: 1 }}>
+
+      <DialogActions sx={{ p: 2, pt: 1, bgcolor: 'background.paper' }}>
         <Button onClick={handleClose}>
           Close
         </Button>

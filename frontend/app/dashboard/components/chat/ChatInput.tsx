@@ -6,14 +6,17 @@ import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import SendIcon from '@mui/icons-material/Send';
+import StopIcon from '@mui/icons-material/Stop';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
+  isLoading?: boolean;
+  onStopGeneration?: () => void;
 }
 
 const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
-  ({ onSendMessage, disabled = false }, ref) => {
+  ({ onSendMessage, disabled = false, isLoading = false, onStopGeneration }, ref) => {
     const [message, setMessage] = useState('');
 
     const handleSend = () => {
@@ -73,21 +76,40 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
             }}
           />
 
-          <IconButton
-            color="primary"
-            onClick={handleSend}
-            disabled={disabled || !message.trim()}
-            sx={{
-              mb: 0.5,
-              bgcolor: message.trim() && !disabled ? 'primary.main' : 'transparent',
-              color: message.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
-              '&:hover': {
-                bgcolor: message.trim() && !disabled ? 'primary.dark' : 'action.hover',
-              },
-            }}
-          >
-            <SendIcon />
-          </IconButton>
+          {isLoading && onStopGeneration ? (
+            <IconButton
+              onClick={() => {
+                console.log('Stop button clicked');
+                onStopGeneration();
+              }}
+              sx={{
+                mb: 0.5,
+                bgcolor: 'error.main',
+                color: 'error.contrastText',
+                '&:hover': {
+                  bgcolor: 'error.dark',
+                },
+              }}
+            >
+              <StopIcon />
+            </IconButton>
+          ) : (
+            <IconButton
+              color="primary"
+              onClick={handleSend}
+              disabled={disabled || !message.trim()}
+              sx={{
+                mb: 0.5,
+                bgcolor: message.trim() && !disabled ? 'primary.main' : 'transparent',
+                color: message.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
+                '&:hover': {
+                  bgcolor: message.trim() && !disabled ? 'primary.dark' : 'action.hover',
+                },
+              }}
+            >
+              <SendIcon />
+            </IconButton>
+          )}
         </Stack>
       </Paper>
     );
