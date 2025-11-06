@@ -10,6 +10,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import ReactMarkdown from 'react-markdown';
+import toast from 'react-hot-toast';
 import { Message as MessageType } from './ChatContainer';
 
 interface MessageProps {
@@ -19,8 +20,13 @@ interface MessageProps {
 export default function Message({ message }: MessageProps) {
   const isUser = message.role === 'user';
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      toast.success('Copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy');
+    }
   };
 
   return (
@@ -53,7 +59,16 @@ export default function Message({ message }: MessageProps) {
         </Avatar>
       )}
 
-      <Box sx={{ maxWidth: '70%', minWidth: '100px' }}>
+      <Box 
+        sx={{ 
+          maxWidth: '70%', 
+          minWidth: '100px', 
+          position: 'relative',
+          '&:hover .copy-button': {
+            opacity: 1,
+          },
+        }}
+      >
         <Paper
           elevation={0}
           sx={{
@@ -63,10 +78,6 @@ export default function Message({ message }: MessageProps) {
             borderRadius: 2,
             border: isUser ? 'none' : '1px solid',
             borderColor: 'divider',
-            position: 'relative',
-            '&:hover .copy-button': {
-              opacity: 1,
-            },
           }}
         >
           <Box
@@ -111,41 +122,47 @@ export default function Message({ message }: MessageProps) {
           >
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </Box>
+        </Paper>
 
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isUser ? 'flex-end' : 'flex-start',
+            mt: 0.5,
+            gap: 1,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+          >
+            {message.timestamp.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Typography>
+          
           <IconButton
             className="copy-button"
             size="small"
             onClick={handleCopy}
             sx={{
-              position: 'absolute',
-              top: 4,
-              right: 4,
               opacity: 0,
               transition: 'opacity 0.2s',
-              color: isUser ? 'primary.contrastText' : 'text.secondary',
+              color: 'text.secondary',
+              padding: '2px',
+              minWidth: '20px',
+              width: '20px',
+              height: '20px',
               '&:hover': {
-                bgcolor: isUser ? 'rgba(255,255,255,0.1)' : 'action.hover',
+                bgcolor: 'action.hover',
               },
             }}
           >
-            <ContentCopyIcon sx={{ fontSize: 16 }} />
+            <ContentCopyIcon sx={{ fontSize: 12 }} />
           </IconButton>
-        </Paper>
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{
-            display: 'block',
-            mt: 0.5,
-            textAlign: isUser ? 'right' : 'left',
-          }}
-        >
-          {message.timestamp.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </Typography>
+        </Box>
       </Box>
 
       {isUser && (

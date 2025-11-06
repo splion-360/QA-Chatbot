@@ -29,13 +29,14 @@ export default function ChatContainer() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string>('');
   const [currentAssistantMessage, setCurrentAssistantMessage] = useState<string>('');
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
-  // const processingComplete = useRef(false);
-  const processedMessageHashes = useRef<Set<string>>(new Set());
+  const processedMessageIds = useRef<Set<string>>(new Set());
+  const currentMessageId = useRef<string | null>(null);
 
   const supabase = createClient();
 
@@ -50,6 +51,11 @@ export default function ChatContainer() {
       setUserId(user.id);
     };
     getUser();
+    
+    // Generate unique session ID for this chat session
+    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    console.log('Generated session ID:', newSessionId);
   }, [supabase]);
 
 
@@ -64,39 +70,75 @@ export default function ChatContainer() {
           console.log('Message received by server');
           break;
 
+        case 'stream_start':
+          console.log('Stream starting with message ID:', data.message_id);
+          currentMessageId.current = data.message_id;
+          setCurrentAssistantMessage('');
+          break;
+
         case 'stream':
-          setCurrentAssistantMessage(prev => prev + data.content);
+          console.log('Stream chunk received:', { 
+            messageId: data.message_id, 
+            currentMessageId: currentMessageId.current, 
+            content: data.content?.slice(0, 50) 
+          });
+          if (data.message_id === currentMessageId.current) {
+            setCurrentAssistantMessage(prev => {
+              const newContent = prev + data.content;
+              console.log('Updated current message:', newContent.slice(0, 100) + '...');
+              return newContent;
+            });
+          }
           break;
 
         case 'complete':
           setCurrentAssistantMessage(current => {
-            if (current.trim()) {
-              console.log('Creating assistant message with content:', current);
+            console.log('Complete received:', { 
+              messageId: data.message_id, 
+              currentMessageId: currentMessageId.current,
+              currentContent: current.slice(0, 100) + '...'
+            });
+            
+            if (data.message_id && current.trim()) {
+              console.log('Creating assistant message with backend ID:', data.message_id);
+              
+              if (processedMessageIds.current.has(data.message_id)) {
+                console.log('Duplicate message ID detected, skipping:', data.message_id);
+                return '';
+              }
+
               const assistantMessage: Message = {
-                id: `assistant-${Date.now()}-${Math.random().toString(36)}`,
+                id: data.message_id,
                 content: current,
                 role: 'assistant',
                 timestamp: new Date(),
               };
-              console.log('Assistant message created with ID:', assistantMessage.id);
 
-              setMessages(prev => {
-                const messageHash = btoa(assistantMessage.content).slice(0, 16);
-
-                if (processedMessageHashes.current.has(messageHash)) {
-                  console.log('Duplicate message hash detected, skipping:', messageHash);
-                  return prev;
-                }
-
-
-                processedMessageHashes.current.add(messageHash);
-                return [...prev, assistantMessage];
-              });
+              processedMessageIds.current.add(data.message_id);
+              setMessages(prev => [...prev, assistantMessage]);
             }
-            setIsLoading(false);
-            console.log('Resetting processingComplete flag to false');
             return '';
           });
+          setIsLoading(false);
+          currentMessageId.current = null;
+          break;
+
+        case 'generation_stopped':
+          console.log('Generation stopped for message:', data.message_id);
+          setCurrentAssistantMessage(current => {
+            if (current.trim()) {
+              const assistantMessage: Message = {
+                id: data.message_id || `stopped-${Date.now()}`,
+                content: current,
+                role: 'assistant',
+                timestamp: new Date(),
+              };
+              setMessages(prev => [...prev, assistantMessage]);
+            }
+            return '';
+          });
+          setIsLoading(false);
+          currentMessageId.current = null;
           break;
 
         case 'error':
@@ -131,6 +173,7 @@ export default function ChatContainer() {
       console.log('Socket manager disconnected');
       setWsConnected(false);
       setCurrentAssistantMessage('');
+      currentMessageId.current = null;
       setIsLoading(false);
     };
 
@@ -180,10 +223,34 @@ export default function ChatContainer() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setCurrentAssistantMessage('');
+    currentMessageId.current = null;
     setError(null);
 
-    const messageData = { message: content };
+    const messageData = { 
+      message: content,
+      session_id: sessionId 
+    };
     socketManager.send(messageData);
+  };
+
+  const stopGeneration = () => {
+    console.log('stopGeneration called', {
+      userId,
+      isConnected: socketManager.isConnected(),
+      currentMessageId: currentMessageId.current
+    });
+    
+    if (!userId || !socketManager.isConnected() || !currentMessageId.current) {
+      console.log('Stop generation blocked: missing requirements');
+      return;
+    }
+
+    console.log('Sending stop generation for message:', currentMessageId.current);
+    const stopData = {
+      type: 'stop_generation',
+      message_id: currentMessageId.current
+    };
+    socketManager.send(stopData);
   };
 
 
@@ -215,7 +282,13 @@ export default function ChatContainer() {
           />
         )}
         <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-          <ChatInput ref={chatInputRef} onSendMessage={handleSendMessage} disabled={isLoading} />
+          <ChatInput 
+            ref={chatInputRef} 
+            onSendMessage={handleSendMessage} 
+            disabled={isLoading}
+            isLoading={isLoading && !!currentAssistantMessage}
+            onStopGeneration={stopGeneration}
+          />
         </Box>
       </Stack>
     </Paper>

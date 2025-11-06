@@ -141,14 +141,16 @@ async def check_document_completion(document_id: str, total_chunks: int):
         raise DocumentProcessingError(document_id, "unknown", str(e)) from e
 
 
-async def summarize_text(text: str) -> str:
+async def summarize_text(text: str, instructions: str = None) -> str:
     client = get_async_openai_client()
+    if not instructions:
+        instructions = f"Summarize the following content in less than {MAX_SUMMARY_TOKENS} words"
     response = await client.chat.completions.create(
         model=SUMMARIZATION_MODEL,
         messages=[
             {
                 "role": "system",
-                "content": f"Summarize the following content in less than {MAX_SUMMARY_TOKENS} words",
+                "content": instructions,
             },
             {"role": "user", "content": text},
         ],
@@ -270,8 +272,8 @@ async def get_document(document_id: str, user_id: str) -> dict[str, Any] | None:
             .execute()
         )
 
-        preview_content = document["content"][:500]
-        if len(document["content"]) > 500:
+        preview_content = document["content"][:1000]
+        if len(document["content"]) > 1000:
             preview_content += "..."
 
         return {
@@ -348,11 +350,11 @@ def is_valid(file: UploadFile) -> bool | None:
     return True
 
 
-async def process_file(file_data: dict, user_id: str, title: str = None) -> str:
-    filename = file_data["filename"]
-    file_size = file_data["size"]
-    content = file_data["content"]
-    content_type = file_data["content_type"]
+async def process_file(data: dict, user_id: str, title: str = None) -> str:
+    filename = data["filename"]
+    file_size = data["size"]
+    content = data["content"]
+    content_type = data["content_type"]
 
     if not content_type == "application/pdf":
         raise HTTPException(

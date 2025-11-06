@@ -89,8 +89,8 @@ async def preview_document(document_id: str, user_id: str = Query(...)):
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    preview_content = document["content"][:500]
-    if len(document["content"]) > 500:
+    preview_content = document["content"][:1000]
+    if len(document["content"]) > 1000:
         preview_content += "..."
 
     return {

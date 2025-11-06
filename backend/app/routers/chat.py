@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import uuid
 from collections import defaultdict
 
 from fastapi import (
@@ -21,14 +22,19 @@ from app.services.chat_service import ChatService
 
 logger = setup_logger("ws-chat")
 router = APIRouter()
-chat_service = ChatService()
 
 active_connections: dict[str, set[WebSocket]] = defaultdict(set)
+active_sessions: dict[str, set[str]] = defaultdict(set)
 connection_last_activity: dict[WebSocket, float] = {}
 heartbeat_tasks: dict[WebSocket, asyncio.Task] = {}
+active_generations: dict[str, bool] = {}
+
+chat_service = ChatService(active_generations)
 
 
-async def cleanup_connection(websocket: WebSocket, user_id: str):
+async def cleanup_connection(
+    websocket: WebSocket, user_id: str, session_id: str = None
+):
     active_connections[user_id].discard(websocket)
     connection_last_activity.pop(websocket, None)
 
@@ -36,8 +42,14 @@ async def cleanup_connection(websocket: WebSocket, user_id: str):
         heartbeat_tasks[websocket].cancel()
         del heartbeat_tasks[websocket]
 
+    if session_id and session_id in active_sessions[user_id]:
+        active_sessions[user_id].discard(session_id)
+        await chat_service.clear_session_cache(session_id)
+
     if not active_connections[user_id]:
         del active_connections[user_id]
+    if user_id in active_sessions and not active_sessions[user_id]:
+        del active_sessions[user_id]
 
 
 async def check_connection_limit(user_id: str) -> bool:
@@ -75,27 +87,13 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
             return
 
         if not await check_connection_limit(user_id):
-            logger.warning(
-                f"REJECTING: Connection limit exceeded for user {user_id} ({len(active_connections[user_id])}/{WS_MAX_CONNECTIONS_PER_USER})"
-            )
             await websocket.close(code=1008, reason="Connection limit exceeded")
             return
 
-        logger.info(
-            f"ACCEPTING: WebSocket connection for user {user_id}",
-            "BRIGHT_GREEN",
-        )
         await websocket.accept()
-        logger.info(
-            f"SUCCESS: WebSocket connection established for user {user_id}",
-            "BRIGHT_GREEN",
-        )
+
     except Exception as e:
-        logger.error(
-            f"FAILED: WebSocket accept failed for user {user_id}: {str(e)}"
-        )
-        logger.error(f"Exception type: {type(e).__name__}")
-        logger.error(f"Exception details: {repr(e)}")
+        logger.error(f"WebSocket accept failed for user {user_id}: {str(e)}")
         return
 
     active_connections[user_id].add(websocket)
@@ -103,6 +101,8 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
 
     heartbeat_task = asyncio.create_task(heartbeat_handler(websocket))
     heartbeat_tasks[websocket] = heartbeat_task
+
+    current_session_id = None
 
     try:
         while True:
@@ -115,7 +115,30 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
             if message.get("type") == "pong":
                 continue
 
+            if message.get("type") == "stop_generation":
+                message_id = message.get("message_id")
+                if message_id and message_id in active_generations:
+                    logger.info(f"Stopping generation for message {message_id}")
+                    active_generations[message_id] = False
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "generation_stopped",
+                                "message_id": message_id,
+                            }
+                        )
+                    )
+                continue
+
             user_message = message.get("message", "").strip()
+            session_id = message.get("session_id")
+
+            if session_id and session_id != current_session_id:
+                if current_session_id:
+                    active_sessions[user_id].discard(current_session_id)
+                current_session_id = session_id
+                active_sessions[user_id].add(session_id)
+
             if not user_message:
                 await websocket.send_text(
                     json.dumps(
@@ -131,14 +154,55 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
             )
 
             try:
+                message_id = str(uuid.uuid4())
+                active_generations[message_id] = True
+                logger.info(f"Starting stream for message ID: {message_id}")
+                await websocket.send_text(
+                    json.dumps(
+                        {"type": "stream_start", "message_id": message_id}
+                    )
+                )
+
+                full_message = ""
                 async for chunk in chat_service.generate_streaming_response(
-                    user_id, user_message
+                    user_id, user_message, session_id, message_id
                 ):
+                    if not active_generations.get(message_id, False):
+                        logger.info(
+                            f"Generation stopped for message {message_id}"
+                        )
+                        await websocket.send_text(
+                            json.dumps(
+                                {
+                                    "type": "generation_stopped",
+                                    "message_id": message_id,
+                                }
+                            )
+                        )
+                        break
+
+                    full_message += chunk
                     await websocket.send_text(
-                        json.dumps({"type": "stream", "content": chunk})
+                        json.dumps(
+                            {
+                                "type": "stream",
+                                "content": chunk,
+                                "message_id": message_id,
+                            }
+                        )
                     )
 
-                await websocket.send_text(json.dumps({"type": "complete"}))
+                if active_generations.get(message_id, False):
+                    logger.info(
+                        f"Complete message for {message_id}: {full_message[:100]}..."
+                    )
+                    await websocket.send_text(
+                        json.dumps(
+                            {"type": "complete", "message_id": message_id}
+                        )
+                    )
+
+                active_generations.pop(message_id, None)
 
             except Exception as e:
                 logger.error(
@@ -158,7 +222,7 @@ async def chat(websocket: WebSocket, user_id: str = Query(...)):
     except Exception as e:
         logger.error(f"WebSocket error for user {user_id}: {str(e)}")
     finally:
-        await cleanup_connection(websocket, user_id)
+        await cleanup_connection(websocket, user_id, current_session_id)
 
 
 @router.post("/")

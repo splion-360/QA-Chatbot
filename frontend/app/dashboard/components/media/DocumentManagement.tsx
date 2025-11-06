@@ -316,7 +316,16 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
             alignItems: 'center',
             gap: 2
           }}>
-            <PictureAsPdfIcon sx={{ fontSize: 64, color: 'text.secondary' }} />
+            <Box sx={{ 
+              bgcolor: 'error.main', 
+              borderRadius: 2, 
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <PictureAsPdfIcon sx={{ fontSize: 64, color: 'white' }} />
+            </Box>
             <Typography variant="h6" color="text.secondary">
               {isSearchActive ? 'No documents found' : 'No documents uploaded yet'}
             </Typography>
@@ -343,7 +352,16 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
                   <TableRow key={document.document_id} hover>
                     <TableCell sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PictureAsPdfIcon color="error" fontSize="small" />
+                        <Box sx={{ 
+                          bgcolor: 'error.main', 
+                          borderRadius: 0.5, 
+                          p: 0.25,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <PictureAsPdfIcon sx={{ color: 'white', fontSize: 16 }} />
+                        </Box>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {document.title}
                         </Typography>
