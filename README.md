@@ -85,7 +85,7 @@ sudo systemctl start redis-server
 6. Run the application:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-python redis/worker.py  # In separate terminal
+python3 launch_workers.py  
 ```
 
 The API will be available at `http://localhost:8000/docs`
