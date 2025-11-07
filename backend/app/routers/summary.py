@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from app.config import logger
+from app.config import setup_logger
 from app.services.summary_service import SummaryService
 
+logger = setup_logger("summary-router")
 router = APIRouter()
 summary_service = SummaryService()
 

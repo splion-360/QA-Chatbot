@@ -7,8 +7,8 @@ from app.services import summary_service
 
 
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
+    title=settings.name,
+    version=settings.version,
     debug=settings.debug,
 )
 
@@ -34,6 +34,6 @@ app.include_router(
 @app.get("/")
 async def root():
     return {
-        "message": f"Welcome to {settings.app_name}",
-        "version": settings.app_version,
+        "message": f"Welcome to {settings.name}",
+        "version": settings.version,
     }
