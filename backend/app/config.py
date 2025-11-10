@@ -180,7 +180,7 @@ MAX_PAGE_SIZE = 50
 
 # Vector Search Configuration
 MAX_SEARCH_LIMIT = 5
-SIMILARITY_SCORE = 0.7
+SIMILARITY_SCORE = 0.3
 
 # WebSocket Configuration
 WS_MAX_CONNECTIONS_PER_USER = 1
