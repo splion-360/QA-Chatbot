@@ -30,12 +30,12 @@ class SummaryService:
         self, user_id: str, start_date: str, end_date: str
     ) -> dict[str, Any]:
         """
-        Generate a summary for documents in the specified date range.
+        Generate a summary for documents in the specified date/time range.
 
         Args:
             user_id: User identifier
-            start_date: Start date for filtering documents
-            end_date: End date for filtering documents
+            start_date: Start date/time (ISO format) for filtering documents
+            end_date: End date/time (ISO format) for filtering documents
 
         Returns:
             Dictionary containing summary details
@@ -47,6 +47,12 @@ class SummaryService:
         try:
             # Fetch documents from database
             supabase = await get_supabase_client()
+            
+            # Log the query parameters for debugging
+            logger.info(
+                f"Querying documents for user {user_id} between {start_date} and {end_date}"
+            )
+            
             response = await (
                 supabase.table("documents")
                 .select("document_id, title, content, created_at")
@@ -57,10 +63,14 @@ class SummaryService:
                 .execute()
             )
             documents = response.data
+            
+            logger.info(
+                f"Found {len(documents)} documents in the specified date/time range"
+            )
 
             if not documents:
                 raise ValueError(
-                    "No documents found in the specified date range"
+                    "No documents found in the specified date/time range"
                 )
 
             # Group chunks by document_id
@@ -129,7 +139,7 @@ class SummaryService:
         prompt = f"""You are an expert document summarizer. Generate a comprehensive markdown summary of the following documents.
 
 **Context:**
-- Date Range: {start_date} to {end_date}
+- Time Range: {start_date} to {end_date}
 - Total Documents: {doc_count}
 
 **Task:**

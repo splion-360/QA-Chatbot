@@ -170,8 +170,8 @@ FALLBACK_MODELS = [
     ("gpt-4o-mini-2024-07-18", "OPENROUTER_GPT_OSS_KEY"),
     ("qwen/qwen-2.5-72b-instruct", "OPENROUTER_QWEN_KEY"),
 ]
-MAX_SUMMARY_TOKENS = 500
-MAX_STREAMING_TOKENS = 10000
+MAX_SUMMARY_TOKENS = int(os.getenv("MAX_SUMMARY_TOKENS", "4096"))  # Increased from 500 to allow comprehensive summaries
+MAX_STREAMING_TOKENS = 4096  #10000
 TEMPERATURE = 0.1
 SUPPORTED_FILE_TYPES = ["application/pdf"]
 
@@ -184,8 +184,13 @@ SIMILARITY_SCORE = 0.3
 
 # WebSocket Configuration
 WS_MAX_CONNECTIONS_PER_USER = 1
+# WS_MAX_CONNECTIONS_PER_USER = int(os.getenv("WS_MAX_CONNECTIONS_PER_USER", "1"))
 WS_IDLE_TIMEOUT = 600
 WS_HEARTBEAT_INTERVAL = 30
+
+# Embedding / retrieval fallbacks
+EMBEDDING_FALLBACK_MODE = os.getenv("EMBEDDING_FALLBACK_MODE", "raise")
+EMBEDDING_FALLBACK_DIM = int(os.getenv("EMBEDDING_FALLBACK_DIM", "768"))
 
 
 def get_async_openai_client(
