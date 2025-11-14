@@ -41,3 +41,9 @@ supabase==2.9.1
 
 # File handling
 aiofiles==24.1.0
+
+# WebSocket
+websockets>=12.0
+
+# Date parser
+dateparser==1.2.2
