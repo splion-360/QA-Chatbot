@@ -316,9 +316,9 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
             alignItems: 'center',
             gap: 2
           }}>
-            <Box sx={{ 
-              bgcolor: 'error.main', 
-              borderRadius: 2, 
+            <Box sx={{
+              bgcolor: 'error.main',
+              borderRadius: 2,
               p: 2,
               display: 'flex',
               alignItems: 'center',
@@ -352,9 +352,9 @@ export default function DocumentManagement({ refreshTrigger, searchQuery = '', i
                   <TableRow key={document.document_id} hover>
                     <TableCell sx={{ borderRight: '1px solid', borderColor: 'divider', py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ 
-                          bgcolor: 'error.main', 
-                          borderRadius: 0.5, 
+                        <Box sx={{
+                          bgcolor: 'error.main',
+                          borderRadius: 0.5,
                           p: 0.25,
                           display: 'flex',
                           alignItems: 'center',

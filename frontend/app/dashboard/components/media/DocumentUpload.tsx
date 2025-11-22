@@ -35,10 +35,6 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       return false;
     }
 
-    if (file.size > 100 * 1024 * 1024) { // 100MB limit
-      setError('File size must be less than 100MB');
-      return false;
-    }
 
     setError('');
     return true;
@@ -97,7 +93,7 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
     setUploading(true);
     setError('');
     setLocalToastOpen(false); // Hide any previous toast messages
-    
+
     let toastMessage = '';
     let toastSeverity: 'success' | 'error' = 'error';
 
@@ -286,9 +282,9 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
         )}
 
         {localToastOpen && (
-          <Alert 
+          <Alert
             severity={localToastSeverity}
-            sx={{ 
+            sx={{
               display: 'flex',
               justifyContent: 'center',
               textAlign: 'center'

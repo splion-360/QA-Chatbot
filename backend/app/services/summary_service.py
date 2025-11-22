@@ -1,21 +1,17 @@
-import json
-from collections.abc import AsyncGenerator
 from typing import Any
 
 from openai import RateLimitError
 from postgrest.exceptions import APIError
 
 from app.config import (
-    FALLBACK_MODELS,
     MAX_SUMMARY_TOKENS,
     SUMMARIZATION_MODEL,
     TEMPERATURE,
-    get_async_openai_client,
-    get_fallback_api_key,
+    get_hosted_llm_client,
     get_supabase_client,
     setup_logger,
 )
-from app.mq.exceptions import DatabaseError
+from app.core.exceptions import DatabaseError
 
 logger = setup_logger("summary-service")
 
@@ -24,7 +20,12 @@ class SummaryService:
     """Service for generating and managing document summaries."""
 
     def __init__(self):
-        self.openai_client = get_async_openai_client()
+        self._openai_client = None
+
+    def _get_client(self):
+        if self._openai_client is None:
+            self._openai_client = get_hosted_llm_client()
+        return self._openai_client
 
     async def generate_summary(
         self, user_id: str, start_date: str, end_date: str
@@ -125,7 +126,7 @@ class SummaryService:
     async def _generate_ai_summary(
         self, content: str, start_date: str, end_date: str, doc_count: int
     ) -> str:
-        """Generate AI summary using OpenAI with fallback support."""
+        """Generate AI summary using the configured hosted model."""
         prompt = f"""You are an expert document summarizer. Generate a comprehensive markdown summary of the following documents.
 
 **Context:**
@@ -152,24 +153,14 @@ Create a well-structured summary with:
             {"role": "user", "content": prompt},
         ]
 
-        # Build list of available clients with fallback models
-        clients_available = []
-        for model, api_key_name in FALLBACK_MODELS:
-            api_key = get_fallback_api_key(api_key_name)
-            if api_key:
-                clients_available.append(
-                    (get_async_openai_client(api_key), model)
-                )
+        client = self._get_client()
 
-        # Try primary model first, then fallbacks
-        primary_model = SUMMARIZATION_MODEL
-        primary_client = get_async_openai_client()
-
-        # Try primary model first
         try:
-            logger.info(f"Attempting summary generation with: {primary_model}")
-            response = await primary_client.chat.completions.create(
-                model=primary_model,
+            logger.info(
+                f"Attempting summary generation with: {SUMMARIZATION_MODEL}"
+            )
+            response = await client.chat.completions.create(
+                model=SUMMARIZATION_MODEL,
                 messages=messages,
                 temperature=TEMPERATURE,
                 max_tokens=MAX_SUMMARY_TOKENS,
@@ -179,46 +170,14 @@ Create a well-structured summary with:
         except RateLimitError as e:
             if e.status_code == 429:
                 logger.warning(
-                    f"Rate limit hit for {primary_model}, trying fallback models"
+                    "Rate limit hit while generating summary. Please retry later"
                 )
-            else:
-                raise
+            raise
         except Exception as e:
-            logger.warning(
-                f"Error with {primary_model}: {str(e)}, trying fallback models"
+            logger.error(
+                f"Summary generation failed with model {SUMMARIZATION_MODEL}: {str(e)}"
             )
-
-        # Try fallback models
-        for client, model in clients_available:
-            try:
-                logger.info(f"Trying fallback model: {model}")
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=TEMPERATURE,
-                    max_tokens=MAX_SUMMARY_TOKENS,
-                )
-                logger.info(f"Successfully generated summary with: {model}")
-                return response.choices[0].message.content
-
-            except RateLimitError as e:
-                if e.status_code == 429:
-                    logger.warning(
-                        f"Rate limit hit for {model}, trying next fallback"
-                    )
-                    continue
-                else:
-                    raise
-            except Exception as e:
-                logger.warning(
-                    f"Error with fallback model {model}: {str(e)}, trying next"
-                )
-                continue
-
-        # If all models fail
-        raise Exception(
-            "All models failed to generate summary. Please try again later."
-        )
+            raise
 
     async def _save_summary(
         self,

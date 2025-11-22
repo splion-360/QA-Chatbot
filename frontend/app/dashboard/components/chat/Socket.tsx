@@ -36,7 +36,7 @@ class WebSocketManager {
     const host = process.env.NODE_ENV === 'production'
       ? window.location.host
       : '127.0.0.1:8000';
-    const wsUrl = `${protocol}//${host}/api/v1/chat/ws?user_id=${userId}`;
+    const wsUrl = `${protocol}//${host}/api/v1/chat/ws?user_id=${userId}&x_user_id=${userId}`;
 
     console.log('Creating singleton WebSocket connection:', wsUrl);
     this.ws = new WebSocket(wsUrl);

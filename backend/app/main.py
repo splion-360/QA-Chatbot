@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.routers import chat, documents, summary
-from app.services import summary_service
 
 
 app = FastAPI(
@@ -21,13 +20,11 @@ app.add_middleware(
 )
 
 app.include_router(chat.router, prefix=f"{settings.prefix}/chat", tags=["chat"])
-app.include_router(documents.router, 
-    prefix=f"{settings.prefix}/documents", 
-    tags=["documents"])
 app.include_router(
-    summary.router,
-    prefix=f"{settings.prefix}/summary",
-    tags=["summary"]
+    documents.router, prefix=f"{settings.prefix}/documents", tags=["documents"]
+)
+app.include_router(
+    summary.router, prefix=f"{settings.prefix}/summary", tags=["summary"]
 )
 
 

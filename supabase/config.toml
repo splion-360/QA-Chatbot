@@ -276,15 +276,6 @@ enabled = false
 # user_pool_id = "my-user-pool-id"
 # user_pool_region = "us-east-1"
 
-# Add Google OAuth configuration
-[auth.external.google]
-enabled = true
-client_id = "env(GMAIL_CLIENT_ID)"
-secret = "env(GMAIL_CLIENT_SECRET)"
-redirect_uri = "http://localhost:3000/auth/v1/callback"
-# This allows local development without nonce verification issues
-skip_nonce_check = true
-
 # Use Clerk as a third-party provider alongside Supabase Auth.
 [auth.third_party.clerk]
 enabled = false

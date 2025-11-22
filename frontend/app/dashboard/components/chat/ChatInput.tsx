@@ -13,10 +13,11 @@ interface ChatInputProps {
   disabled?: boolean;
   isLoading?: boolean;
   onStopGeneration?: () => void;
+  canStop?: boolean;
 }
 
 const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
-  ({ onSendMessage, disabled = false, isLoading = false, onStopGeneration }, ref) => {
+  ({ onSendMessage, disabled = false, isLoading = false, onStopGeneration, canStop = false }, ref) => {
     const [message, setMessage] = useState('');
 
     const handleSend = () => {
@@ -75,41 +76,22 @@ const ChatInput = forwardRef<HTMLInputElement, ChatInputProps>(
               },
             }}
           />
-
-          {isLoading && onStopGeneration ? (
+          {canStop && onStopGeneration && (
             <IconButton
-              onClick={() => {
-                console.log('Stop button clicked');
-                onStopGeneration();
-              }}
-              sx={{
-                mb: 0.5,
-                bgcolor: 'error.main',
-                color: 'error.contrastText',
-                '&:hover': {
-                  bgcolor: 'error.dark',
-                },
-              }}
+              color="error"
+              disabled={!isLoading}
+              onClick={onStopGeneration}
             >
               <StopIcon />
             </IconButton>
-          ) : (
-            <IconButton
-              color="primary"
-              onClick={handleSend}
-              disabled={disabled || !message.trim()}
-              sx={{
-                mb: 0.5,
-                bgcolor: message.trim() && !disabled ? 'primary.main' : 'transparent',
-                color: message.trim() && !disabled ? 'primary.contrastText' : 'text.disabled',
-                '&:hover': {
-                  bgcolor: message.trim() && !disabled ? 'primary.dark' : 'action.hover',
-                },
-              }}
-            >
-              <SendIcon />
-            </IconButton>
           )}
+          <IconButton
+            color="primary"
+            disabled={disabled || message.trim().length === 0}
+            onClick={handleSend}
+          >
+            <SendIcon />
+          </IconButton>
         </Stack>
       </Paper>
     );
