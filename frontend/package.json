@@ -25,7 +25,7 @@
     "@supabase/supabase-js": "^2.74.0",
     "@types/socket.io-client": "^1.4.36",
     "dayjs": "^1.11.18",
-    "next": "15.5.7",
+    "next": "15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hot-toast": "^2.6.0",
